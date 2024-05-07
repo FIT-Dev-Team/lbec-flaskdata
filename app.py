@@ -48,6 +48,13 @@ def login():
 def is_logged_in():
     return 'user_id' in session
  
+@app.route('/testing')
+def testing():
+    return render_template("dev.html")
+
+@app.route('/rawext')
+def rawext():
+    return render_template("raw_ext.html")
 
 @app.route('/')
 def index():
