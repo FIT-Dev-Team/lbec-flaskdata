@@ -1,7 +1,12 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block title %}LightBlue Connect by Pepé{% endblock %}
+{% block title %}Home{% endblock %}
 
-{% block body %}
-  <!-- Content specific to this page goes here -->
+{% block content %}
+    <h1>Welcome to My App</h1>
+    <p>Please select a functionality to execute:</p>
+    <ul>
+        <li><a href="{{ url_for('form_extractor') }}">FW & CV Extractor</a></li>
+        <!-- Add more links to other functionalities if needed -->
+    </ul>
 {% endblock %}

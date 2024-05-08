@@ -1,81 +1,91 @@
-from flask import Flask, json, jsonify, render_template, request, session, redirect, url_for, send_file, make_response
-from flask_scss import Scss
-from flask_sqlalchemy import SQLAlchemy
-import mysql.connector
+from flask import Flask, render_template, request, send_file
+import pandas as pd
+import sqlalchemy
+import configparser
 import os
-from datetime import timedelta
-from dotenv import load_dotenv
-
-
-# Load environment variables from the .env file
-load_dotenv()
-
-# Access environment variables
-USERNAME = os.getenv('USERNAME')
-PASSWORD = os.getenv('PASSWORD')
-HOST = os.getenv('HOST')
-DATABASE_NAME = os.getenv('DATABASE_NAME')
-# Retrieve connection information from environment variables
-LOGIN_USERNAME = os.getenv('LOGIN_USERNAME')
-LOGIN_PASSWORD = os.getenv('LOGIN_PASSWORD')
 
 app = Flask(__name__)
-Scss(app)
 
-app.secret_key = 'lightblue_session'
+# Load configuration
+def load_configuration(file_path='config.ini'):
+    config_parser = configparser.ConfigParser()
+    config_parser.read(file_path)
+    db_config = dict(config_parser['mysql'])
+    return db_config
 
-app.config.update(
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=timedelta(hours=6)  # One-hour session lifetime
-)
+# Create MySQL connection using SQLAlchemy
+def create_connection(db_config):
+    connection_str = f"mysql+mysqlconnector://{db_config['user']}:{db_config['password']}@{db_config['host']}/{db_config['database']}"
+    engine = sqlalchemy.create_engine(connection_str)
+    return engine
 
-@app.route('/login', methods=['GET', 'POST']) # Login Process Verification
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-
-        if username == LOGIN_USERNAME and password == LOGIN_PASSWORD:
-            session['user_id'] = 'identifiant_unique_utilisateur'
-            return redirect(url_for('input_form'))  # Redirect to total_fw
-        else:
-            return "Échec de la connexion", 401
-    else:
-        return render_template('login.html')
-
-def is_logged_in():
-    return 'user_id' in session
+# Fetch data based on form input
+def fetch_data(engine, company_name, start_date, end_date):
+    query = f"""
+    SELECT 
+        DATE(kfw.OPERATION_DATE) as OPERATION_DATE,
+        cp.COMPANY_NAME,
+            ks.KICHEN_NAME,
+    kfw.SHIFT_ID,
+    kfw.IGD_CATEGORY_ID,
+    kfw.IGD_FOODTYPE_ID,
+    kfw.AMOUNT 
+    FROM 
+        KITCHEN_FOOD_WASTE kfw 
+    JOIN 
+        KITCHEN_STATION ks ON kfw.KC_STT_ID = ks.KC_STT_ID 
+    JOIN 
+        COMPANY_PROFILE cp ON ks.CPN_PF_ID = cp.CPN_PF_ID
+    WHERE kfw.ACTIVE ='Y' and 
+    cp.COMPANY_STATUS = 'ACTIVE' and 
+    ks.KICHEN_STATUS = 'Y' and
+    ks.ACTIVE = 'Y' and cp.COMPANY_NAME LIKE '%{company_name}%' and (kfw.OPERATION_DATE BETWEEN '{start_date}' AND '{end_date}')
+    ORDER BY kfw.OPERATION_DATE;"""
+    return pd.read_sql_query(query, engine)
 
 @app.route('/')
 def index():
-    if not is_logged_in():
-        return redirect(url_for('login'))
-    
-@app.route('/form')
-def input_form():
-    return render_template('form.html')
+    return render_template('index.html')
 
-@app.route('/process', methods=['POST'])
-def process():
-    destination = request.form['destination']
-    
-    if destination == 'Extractor':
-        return redirect(url_for('extractor'))
-    if destination == 'Total_FW':
-        return redirect(url_for('total_fw'))
-    if destination == 'Send_love':
-        return redirect(url_for('send_love'))
-    else:
-        return redirect(url_for('form'))
+@app.route('/form_extractor')
+def form_extractor():
+    return render_template('form_extractor.html')
 
-@app.route('/extractor', methods=['GET', 'POST'])
-def extractor():
-    return render_template('extractor.html')
-def process_extractor(company_name, start_date, end_date):
-    df = pd.read_sql_query()
- 
+@app.route('/process_extractor', methods=['POST'])
+def process_extractor():
+    company_name = request.form['company_name']
+    start_date = request.form['start_date']
+    end_date = request.form['end_date']
+
+    # Load configuration and create a database connection
+    config = load_configuration()
+    engine = create_connection(config)
+
+    try:
+        # Fetch data
+        fw = fetch_data(engine, company_name, start_date, end_date)
+
+        if fw.empty:
+            return "No data found for the given parameters."
+
+        # Process data into a pivot table
+        np_fw = fw[fw['IGD_CATEGORY_ID'] != 'PLATE']
+        pivot = np_fw.pivot_table(index=['COMPANY_NAME', 'KICHEN_NAME'], columns='IGD_FOODTYPE_ID', values='AMOUNT', aggfunc='sum').reset_index()
+        pivot['START'] = np_fw['OPERATION_DATE'].min()
+        pivot['END'] = np_fw['OPERATION_DATE'].max()
+
+        # Save to CSV
+        home_dir = os.path.expanduser('~')
+        filename = f'{company_name}_total_fw_kg.csv'
+        file_path = os.path.join(home_dir, 'Documents', filename)
+        pivot.to_csv(file_path, index=False)
+
+        # Return the file as a download
+        return send_file(file_path, as_attachment=True)
+
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(debug=True)
+
