@@ -39,7 +39,7 @@ def login():
 
         if username == LOGIN_USERNAME and password == LOGIN_PASSWORD:
             session['user_id'] = 'identifiant_unique_utilisateur'
-            return redirect(url_for('total_fw'))  # Redirect to total_fw
+            return redirect(url_for('input_form'))  # Redirect to total_fw
         else:
             return "Échec de la connexion", 401
     else:
@@ -47,23 +47,34 @@ def login():
 
 def is_logged_in():
     return 'user_id' in session
- 
-@app.route('/testing')
-def testing():
-    return render_template("dev.html")
-
-@app.route('/rawext')
-def rawext():
-    return render_template("raw_ext.html")
 
 @app.route('/')
 def index():
     if not is_logged_in():
         return redirect(url_for('login'))
+    
+@app.route('/form')
+def input_form():
+    return render_template('form.html')
 
-@app.route('/total_fw')
-def total_fw():
-    return render_template("total_fw.html")
+@app.route('/process', methods=['POST'])
+def process():
+    destination = request.form['destination']
+    
+    if destination == 'Extractor':
+        return redirect(url_for('extractor'))
+    if destination == 'Total_FW':
+        return redirect(url_for('total_fw'))
+    if destination == 'Send_love':
+        return redirect(url_for('send_love'))
+    else:
+        return redirect(url_for('form'))
+
+@app.route('/extractor', methods=['GET', 'POST'])
+def extractor():
+    return render_template('extractor.html')
+def process_extractor(company_name, start_date, end_date):
+    df = pd.read_sql_query()
  
 
 if __name__ == '__main__':
