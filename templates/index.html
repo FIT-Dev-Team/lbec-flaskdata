@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Home{% endblock %}
+{% block title %}Pepé{% endblock %}
 
 {% block content %}
-    <h1>Welcome to My App</h1>
+    <h1>Welcome to de APP</h1>
     <p>Please select a functionality to execute:</p>
     <ul>
-        <li><a href="{{ url_for('form_extractor') }}">FW & CV Extractor</a></li>
+        <li><a href="{{ url_for('form_total_fw') }}">Total FW Extractor <img src="/static/garbage.png" width="32" height="32"></a></li>
         <!-- Add more links to other functionalities if needed -->
     </ul>
 {% endblock %}

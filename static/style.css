@@ -1,0 +1,44 @@
+/* Custom Navigation Styles */
+.navbar {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
+}
+
+.navbar-brand {
+    font-weight: bold; /* Make brand name stand out */
+    color: #4a90e2 !important; /* Custom brand color */
+}
+
+.navbar-nav .nav-item .nav-link {
+    color: #007bff !important; /* Link color */
+    font-size: 1.1em; /* Increase font size */
+    margin-right: 15px; /* Space between links */
+    transition: color 0.3s ease; /* Smooth color change */
+}
+
+.navbar-nav .nav-item .nav-link:hover {
+    color: #0056b3 !important; /* Darken color on hover */
+}
+
+/* Content Container Styling */
+.container {
+    max-width: 960px; /* Limit container width for better readability */
+    background-color: #f9f9f9; /* Light gray background */
+    padding: 20px; /* Add some inner padding */
+    border-radius: 8px; /* Rounded corners */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Soft shadow for depth */
+    margin-top: 30px; /* Add top margin to separate from the navbar */
+}
+
+/* Global Body Styles */
+body {
+    background-color: #eef2f7; /* Light overall background color */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Custom font family */
+}
+
+/* Footer Styling */
+footer {
+    text-align: center;
+    padding: 15px 0;
+    background-color: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+}

@@ -47,12 +47,12 @@ def fetch_data(engine, company_name, start_date, end_date):
 def index():
     return render_template('index.html')
 
-@app.route('/form_extractor')
-def form_extractor():
-    return render_template('form_extractor.html')
+@app.route('/form_total_fw')
+def form_total_fw():
+    return render_template('form_total_fw.html')
 
-@app.route('/process_extractor', methods=['POST'])
-def process_extractor():
+@app.route('/process_total_fw', methods=['POST'])
+def process_total_fw():
     company_name = request.form['company_name']
     start_date = request.form['start_date']
     end_date = request.form['end_date']
@@ -73,15 +73,18 @@ def process_extractor():
         pivot = np_fw.pivot_table(index=['COMPANY_NAME', 'KICHEN_NAME'], columns='IGD_FOODTYPE_ID', values='AMOUNT', aggfunc='sum').reset_index()
         pivot['START'] = np_fw['OPERATION_DATE'].min()
         pivot['END'] = np_fw['OPERATION_DATE'].max()
-
-        # Save to CSV
+        # Create the file path for the CSV
         home_dir = os.path.expanduser('~')
-        filename = f'{company_name}_total_fw_kg.csv'
-        file_path = os.path.join(home_dir, 'Documents', filename)
+        file_path = os.path.join(home_dir, 'Documents', f"{company_name}_Total_FW.csv")
+
+        # Write the CSV to the specified file path
         pivot.to_csv(file_path, index=False)
 
         # Return the file as a download
         return send_file(file_path, as_attachment=True)
+
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
 
     except Exception as e:
         return f"An error occurred: {str(e)}"
