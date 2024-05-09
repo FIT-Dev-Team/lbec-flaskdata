@@ -51,9 +51,27 @@ def process_total_fw():
         pivot = np_fw.pivot_table(index=['COMPANY_NAME', 'KICHEN_NAME'], columns='IGD_FOODTYPE_ID', values='AMOUNT', aggfunc='sum').reset_index()
         pivot['START'] = np_fw['OPERATION_DATE'].min()
         pivot['END'] = np_fw['OPERATION_DATE'].max()
+
+        # Select columns containing float values for summation
+        float_columns = pivot.select_dtypes(include=['float64', 'int64']).columns
+
+        # Calculate the total sum horizontally (ignores NaN values)
+        pivot['TOTAL'] = pivot[float_columns].sum(axis=1)
+
+        # Find the insertion index for the 'TOTAL' column (before 'START' and 'END')
+        start_index = pivot.columns.get_loc('START')
+
+        # Reorder columns to place 'TOTAL' before 'START'
+        columns_order = list(pivot.columns)
+        columns_order.remove('TOTAL')
+        columns_order.insert(start_index, 'TOTAL')
+
+        # Reassign the reordered columns
+        pivot = pivot[columns_order]
         # Create the file path for the CSV
         home_dir = os.path.expanduser('~')
         file_path = os.path.join(home_dir, 'Documents', f"{company_name}_Total_FW.csv")
+
 
         # Write the CSV to the specified file path
         pivot.to_csv(file_path, index=False)
