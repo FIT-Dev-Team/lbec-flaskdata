@@ -3,6 +3,8 @@ import pandas as pd
 import sqlalchemy
 import configparser
 import os
+import xlsxwriter
+from queries import fetch_total_fw, fetch_fw_entries, fetch_cv_entries
 
 app = Flask(__name__)
 
@@ -18,30 +20,6 @@ def create_connection(db_config):
     connection_str = f"mysql+mysqlconnector://{db_config['user']}:{db_config['password']}@{db_config['host']}/{db_config['database']}"
     engine = sqlalchemy.create_engine(connection_str)
     return engine
-
-# Fetch data based on form input
-def fetch_data(engine, company_name, start_date, end_date):
-    query = f"""
-    SELECT 
-        DATE(kfw.OPERATION_DATE) as OPERATION_DATE,
-        cp.COMPANY_NAME,
-            ks.KICHEN_NAME,
-    kfw.SHIFT_ID,
-    kfw.IGD_CATEGORY_ID,
-    kfw.IGD_FOODTYPE_ID,
-    kfw.AMOUNT 
-    FROM 
-        KITCHEN_FOOD_WASTE kfw 
-    JOIN 
-        KITCHEN_STATION ks ON kfw.KC_STT_ID = ks.KC_STT_ID 
-    JOIN 
-        COMPANY_PROFILE cp ON ks.CPN_PF_ID = cp.CPN_PF_ID
-    WHERE kfw.ACTIVE ='Y' and 
-    cp.COMPANY_STATUS = 'ACTIVE' and 
-    ks.KICHEN_STATUS = 'Y' and
-    ks.ACTIVE = 'Y' and cp.COMPANY_NAME LIKE '%{company_name}%' and (kfw.OPERATION_DATE BETWEEN '{start_date}' AND '{end_date}')
-    ORDER BY kfw.OPERATION_DATE;"""
-    return pd.read_sql_query(query, engine)
 
 @app.route('/')
 def index():
@@ -63,7 +41,7 @@ def process_total_fw():
 
     try:
         # Fetch data
-        fw = fetch_data(engine, company_name, start_date, end_date)
+        fw = fetch_total_fw(engine, company_name, start_date, end_date)
 
         if fw.empty:
             return "No data found for the given parameters."
@@ -85,7 +63,34 @@ def process_total_fw():
 
     except Exception as e:
         return f"An error occurred: {str(e)}"
+    
+@app.route('/form_entries')
+def form_entries():
+    return render_template('form_entries.html')
 
+@app.route('/process_entries', methods=['POST'])
+def process_entries():
+    company_name = request.form['company_name']
+    start_date = request.form['start_date']
+    end_date = request.form['end_date']
+    config = load_configuration()
+    engine = create_connection(config)
+    try:
+        fw = fetch_fw_entries(engine, company_name, start_date, end_date)
+        cv = fetch_cv_entries(engine, company_name, start_date, end_date)
+        if fw.empty and cv.empty:
+            return "No data found for the given parameters."
+       
+        home_dir = os.path.expanduser('~')
+        file_path = os.path.join(home_dir, 'Documents', f"{company_name}_FW&CV_entries.xlsx")
+        # Read dataframe into excel
+        with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
+        # Write each DataFrame to a specific sheet
+            fw.to_excel(writer, sheet_name='FW', index=False)
+            cv.to_excel(writer, sheet_name='CV', index=False)
+        # Return the file as a download
+        return send_file(file_path, as_attachment=True)
+    
     except Exception as e:
         return f"An error occurred: {str(e)}"
 
