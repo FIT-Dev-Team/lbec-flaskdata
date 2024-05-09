@@ -81,13 +81,19 @@ def process_entries():
         if fw.empty and cv.empty:
             return "No data found for the given parameters."
        
+        fw_columns = {'COMPANY_NAME': 'Property', 'KICHEN_NAME': 'Kitchen', 'OPERATION_DATE': 'Date', 'SHIFT_ID': 'Shift', 'IGD_CATEGORY_ID': 'Category', 'IGD_FOODTYPE_ID': 'Type of food', 'AMOUNT': 'Weight'}
+        cv_columns = {'COMPANY_NAME': 'Property', 'KICHEN_NAME': 'Kitchen', 'OPERATION_DATE': 'Date', 'SHIFT_ID': 'Shift', 'AMOUNT': 'Covers'}
+        fw2 = fw.rename(columns=fw_columns)
+        cv2 = cv.rename(columns=cv_columns)
+        sorted_fw = fw2[['Date','Property','Kitchen','Shift','Category','Type of food','Weight']]
+        sorted_cv = cv2[['Date','Property','Kitchen','Shift','Covers']]
         home_dir = os.path.expanduser('~')
         file_path = os.path.join(home_dir, 'Documents', f"{company_name}_FW&CV_entries.xlsx")
         # Read dataframe into excel
         with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
         # Write each DataFrame to a specific sheet
-            fw.to_excel(writer, sheet_name='FW', index=False)
-            cv.to_excel(writer, sheet_name='CV', index=False)
+            sorted_fw.to_excel(writer, sheet_name='FW', index=False)
+            sorted_cv.to_excel(writer, sheet_name='CV', index=False)
         # Return the file as a download
         return send_file(file_path, as_attachment=True)
     
