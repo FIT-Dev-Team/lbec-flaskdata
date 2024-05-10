@@ -32,7 +32,7 @@
 /* Global Body Styles */
 body {
     background-color: #eef2f7; /* Light overall background color */
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Custom font family */
+    font-family: 'Roboto',Arial, Helvetica, sans-serif, Segoe UI, Tahoma, Geneva, Verdana; /* Custom font family */
 }
 
 /* Footer Styling */

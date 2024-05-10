@@ -15,6 +15,8 @@
      <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- Roboto Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <!-- Navbar with Bootstrap classes -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <a class="navbar-brand" href="{{ url_for('index') }}">Pepé<img src="/static/goated.png" width="48" height="48"></a>
@@ -27,10 +29,13 @@
                     <a class="nav-link" href="{{ url_for('index') }}">Home</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('form_total_fw') }}">Total FW Extractor</a>
+                    <a class="nav-link" href="{{ url_for('form_total_fw') }}">Total FW</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('form_entries') }}">FW&CV Extractor</a>
+                    <a class="nav-link" href="{{ url_for('form_entries') }}">FW & Cover Entries</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('form_dcon') }}">Consistency</a>
                 </li>
                 <!-- Add more links to other forms as needed -->
             </ul>

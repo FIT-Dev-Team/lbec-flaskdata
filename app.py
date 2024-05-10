@@ -118,6 +118,19 @@ def process_entries():
     except Exception as e:
         return f"An error occurred: {str(e)}"
 
+@app.route('/form_dcon')
+def form_dcon():
+    return render_template('form_dcon.html')
+
+@app.route('/process_dcon', methods=['POST'])
+def process_dcon():
+    company_name = request.form['company_name']
+    end_date = request.form['end_date']
+    config = load_configuration()
+    engine = create_connection(config)
+    
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
 
