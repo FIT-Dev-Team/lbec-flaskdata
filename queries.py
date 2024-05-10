@@ -84,3 +84,25 @@ def fetch_cv_entries(engine, company_name, start_date, end_date):
     AND cp.COMPANY_NAME LIKE '%{company_name}%' and (kc.OPERATION_DATE BETWEEN '{start_date}' AND '{end_date}')
     ORDER BY ks.KICHEN_NAME, kc.OPERATION_DATE;""" 
     return pd.read_sql_query(query, engine)
+
+def fetch_blpr(engine):
+    query = f"""SELECT 
+    cp.COMPANY_NAME,
+    ks.KICHEN_NAME,
+    kb.BASELINE_START_DATE,
+    kb.BASELINE_END_DATE
+    FROM
+    COMPANY_PROFILE cp 
+    JOIN
+    KITCHEN_STATION ks ON cp.CPN_PF_ID = ks.CPN_PF_ID 
+    JOIN 
+    KITCHEN_BASELINE kb ON kb.KC_STT_ID = ks.KC_STT_ID 
+    WHERE cp.COMPANY_STATUS = 'ACTIVE'
+    AND 
+    cp.ACTIVE = 'Y'
+    AND 
+    ks.KICHEN_STATUS = 'Y'
+    AND 
+    ks.ACTIVE = 'Y'
+    ORDER BY cp.COMPANY_NAME, ks.KICHEN_NAME;"""
+    return pd.read_sql_query(query, engine)

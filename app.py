@@ -4,7 +4,7 @@ import sqlalchemy
 import configparser
 import os
 import xlsxwriter
-from queries import fetch_total_fw, fetch_fw_entries, fetch_cv_entries
+from queries import fetch_total_fw, fetch_fw_entries, fetch_cv_entries, fetch_blpr
 
 app = Flask(__name__)
 
@@ -124,12 +124,24 @@ def form_dcon():
 
 @app.route('/process_dcon', methods=['POST'])
 def process_dcon():
-    company_name = request.form['company_name']
-    end_date = request.form['end_date']
+    #company_name = request.form['company_name']
+    #end_date = request.form['end_date']
     config = load_configuration()
     engine = create_connection(config)
-    
 
+    try:
+        blpr = fetch_blpr(engine)
+        if blpr.empty:
+            return "No data found for the given parameters."
+        
+        home_dir = os.path.expanduser('~')
+        file_path = os.path.join(home_dir, 'Documents', "baseline_periods.csv")
+        blpr.to_csv(file_path, index=False)
+        
+        return send_file(file_path, as_attachment=True)
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
+    
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
