@@ -5,19 +5,19 @@ import configparser
 import os
 import xlsxwriter
 from queries import fetch_total_fw, fetch_fw_entries, fetch_cv_entries, fetch_blpr
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
-# Load configuration
-def load_configuration(file_path='config.ini'):
-    config_parser = configparser.ConfigParser()
-    config_parser.read(file_path)
-    db_config = dict(config_parser['mysql'])
-    return db_config
-
-# Create MySQL connection using SQLAlchemy
-def create_connection(db_config):
-    connection_str = f"mysql+mysqlconnector://{db_config['user']}:{db_config['password']}@{db_config['host']}/{db_config['database']}"
+# Load configuration# Function to create MySQL connection using SQLAlchemy
+def create_connection():
+    user = os.getenv('USERNAME')
+    password = os.getenv('PASSWORD')
+    host = os.getenv('HOST')
+    database = os.getenv('DATABASE_NAME')
+    connection_str = f"mysql+mysqlconnector://{user}:{password}@{host}/{database}"
     engine = sqlalchemy.create_engine(connection_str)
     return engine
 
@@ -36,8 +36,8 @@ def process_total_fw():
     end_date = request.form['end_date']
 
     # Load configuration and create a database connection
-    config = load_configuration()
-    engine = create_connection(config)
+    
+    engine = create_connection()
 
     try:
         # Fetch data
@@ -91,8 +91,7 @@ def process_entries():
     company_name = request.form['company_name']
     start_date = request.form['start_date']
     end_date = request.form['end_date']
-    config = load_configuration()
-    engine = create_connection(config)
+    engine = create_connection() 
     try:
         fw = fetch_fw_entries(engine, company_name, start_date, end_date)
         cv = fetch_cv_entries(engine, company_name, start_date, end_date)
@@ -125,10 +124,8 @@ def form_dcon():
 @app.route('/process_dcon', methods=['POST'])
 def process_dcon():
     #company_name = request.form['company_name']
-    #end_date = request.form['end_date']
-    config = load_configuration()
-    engine = create_connection(config)
-
+    #end_date = request.form['end_date'
+    engine = create_connection() 
     try:
         blpr = fetch_blpr(engine)
         if blpr.empty:
@@ -144,6 +141,7 @@ def process_dcon():
     
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000, debug=True)
+    # Note: Replace this with your production server run command, like using Gunicorn
+    pass
 
 
