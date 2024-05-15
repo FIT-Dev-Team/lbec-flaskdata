@@ -149,7 +149,6 @@ def process_dcon():
     
 
 if __name__ == '__main__':
-    # Note: Replace this with your production server run command, like using Gunicorn
+    app.run(host='0.0.0.0', port=10000)
     pass
-
 
