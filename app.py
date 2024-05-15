@@ -6,6 +6,11 @@ import os
 import xlsxwriter
 from queries import fetch_total_fw, fetch_fw_entries, fetch_cv_entries, fetch_blpr
 from dotenv import load_dotenv
+import logging
+import tempfile
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
 
 load_dotenv()
 
@@ -31,6 +36,7 @@ def form_total_fw():
 
 @app.route('/process_total_fw', methods=['POST'])
 def process_total_fw():
+    logger.info("Processing the total FW")
     company_name = request.form['company_name']
     start_date = request.form['start_date']
     end_date = request.form['end_date']
@@ -69,17 +75,15 @@ def process_total_fw():
         # Reassign the reordered columns
         pivot = pivot[columns_order]
         # Create the file path for the CSV
-        home_dir = os.path.expanduser('~')
-        file_path = os.path.join(home_dir, 'Documents', f"{company_name}_Total_FW.csv")
+        temp_dir = tempfile.gettempdir()  # Gets the temporary directory
+        file_path = os.path.join(temp_dir, f"{company_name}_Total_FW.csv")
 
-
-        # Write the CSV to the specified file path
         pivot.to_csv(file_path, index=False)
-
-        # Return the file as a download
         return send_file(file_path, as_attachment=True)
 
+
     except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
     
 @app.route('/form_entries')
@@ -88,6 +92,7 @@ def form_entries():
 
 @app.route('/process_entries', methods=['POST'])
 def process_entries():
+    logger.info("Processing the Entries")
     company_name = request.form['company_name']
     start_date = request.form['start_date']
     end_date = request.form['end_date']
@@ -104,8 +109,8 @@ def process_entries():
         cv2 = cv.rename(columns=cv_columns)
         sorted_fw = fw2[['Date','Property','Kitchen','Shift','Category','Type of food','Weight']]
         sorted_cv = cv2[['Date','Property','Kitchen','Shift','Covers']]
-        home_dir = os.path.expanduser('~')
-        file_path = os.path.join(home_dir, 'Documents', f"{company_name}_FW&CV_entries.xlsx")
+        temp_dir = tempfile.gettempdir()  # Gets the temporary directory
+        file_path = os.path.join(temp_dir, f"{company_name}_FW&CV_Entries.xlsx")
         # Read dataframe into excel
         with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
         # Write each DataFrame to a specific sheet
@@ -115,6 +120,7 @@ def process_entries():
         return send_file(file_path, as_attachment=True)
     
     except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
 
 @app.route('/form_dcon')
@@ -123,6 +129,7 @@ def form_dcon():
 
 @app.route('/process_dcon', methods=['POST'])
 def process_dcon():
+    logger.info("Processing the dcon")
     #company_name = request.form['company_name']
     #end_date = request.form['end_date'
     engine = create_connection() 
@@ -131,12 +138,13 @@ def process_dcon():
         if blpr.empty:
             return "No data found for the given parameters."
         
-        home_dir = os.path.expanduser('~')
-        file_path = os.path.join(home_dir, 'Documents', "baseline_periods.csv")
+        temp_dir = tempfile.gettempdir()  # Gets the temporary directory
+        file_path = os.path.join(temp_dir, f"Baseline_periods.csv")
         blpr.to_csv(file_path, index=False)
         
         return send_file(file_path, as_attachment=True)
     except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
     
 
