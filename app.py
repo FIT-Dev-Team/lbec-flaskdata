@@ -111,7 +111,9 @@ def process_entries():
         sorted_fw = fw2[['Date','Property','Kitchen','Shift','Category','Type of food','Weight']]
         sorted_cv = cv2[['Date','Property','Kitchen','Shift','Covers']]
 
+        # Add how many entries per kitchen 
         
+
         temp_dir = tempfile.gettempdir()  # Gets the temporary directory
         file_path = os.path.join(temp_dir, f"{company_name}_FW&CV_Entries.xlsx")
         # Read dataframe into excel
