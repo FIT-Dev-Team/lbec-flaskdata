@@ -110,6 +110,8 @@ def process_entries():
         cv2 = cv.rename(columns=cv_columns)
         sorted_fw = fw2[['Date','Property','Kitchen','Shift','Category','Type of food','Weight']]
         sorted_cv = cv2[['Date','Property','Kitchen','Shift','Covers']]
+
+        
         temp_dir = tempfile.gettempdir()  # Gets the temporary directory
         file_path = os.path.join(temp_dir, f"{company_name}_FW&CV_Entries.xlsx")
         # Read dataframe into excel
@@ -270,6 +272,5 @@ def process_dcon():
         return f"An error occurred: {str(e)}"
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
-    pass
+    app.run(host='0.0.0.0', port=5001, debug=True)
 
