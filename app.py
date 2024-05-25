@@ -110,9 +110,11 @@ def process_entries():
         cv2 = cv.rename(columns=cv_columns)
         sorted_fw = fw2[['Date','Property','Kitchen','Shift','Category','Type of food','Weight']]
         sorted_cv = cv2[['Date','Property','Kitchen','Shift','Covers']]
+        replacement = {'DARIY':'Dairy/Egg','STAPLE_FOOD':'Staple food'}
+        sorted_fw.loc[:,'Type of food'] = sorted_fw['Type of food'].replace(replacement)
 
         # Add how many entries per kitchen 
-        
+        entry_counts = sorted_fw.groupby(['Property','Kitchen']).size().reset_index(name='Count')        
 
         temp_dir = tempfile.gettempdir()  # Gets the temporary directory
         file_path = os.path.join(temp_dir, f"{company_name}_FW&CV_Entries.xlsx")
@@ -121,6 +123,7 @@ def process_entries():
         # Write each DataFrame to a specific sheet
             sorted_fw.to_excel(writer, sheet_name='FW', index=False)
             sorted_cv.to_excel(writer, sheet_name='CV', index=False)
+            entry_counts.to_excel(writer, sheet_name='FW Entry Counts', index=False)
         # Return the file as a download
         return send_file(file_path, as_attachment=True)
     
