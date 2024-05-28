@@ -110,7 +110,7 @@ def process_entries():
         cv2 = cv.rename(columns=cv_columns)
         sorted_fw = fw2[['Date','Property','Kitchen','Shift','Category','Weight','Type of food']]
         sorted_cv = cv2[['Date','Property','Kitchen','Shift','Covers']]
-        replacement = {'DARIY':'Dairy/Egg','STAPLE_FOOD':'Staple food'}
+        replacement = {'DAIRY':'Dairy/Egg','STAPLE_FOOD':'Staple food'}
         sorted_fw.loc[:,'Type of food'] = sorted_fw['Type of food'].replace(replacement)
 
         # Add how many entries per kitchen 
