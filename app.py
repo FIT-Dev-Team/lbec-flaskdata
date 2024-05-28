@@ -108,8 +108,14 @@ def process_entries():
         cv_columns = {'COMPANY_NAME': 'Property', 'KICHEN_NAME': 'Kitchen', 'OPERATION_DATE': 'Date', 'SHIFT_ID': 'Shift', 'AMOUNT': 'Covers'}
         fw2 = fw.rename(columns=fw_columns)
         cv2 = cv.rename(columns=cv_columns)
-        sorted_fw = fw2[['Date','Property','Kitchen','Shift','Category','Type of food','Weight']]
+        sorted_fw = fw2[['Date','Property','Kitchen','Shift','Category','Weight','Type of food']]
         sorted_cv = cv2[['Date','Property','Kitchen','Shift','Covers']]
+        replacement = {'DAIRY':'Dairy/Egg','STAPLE_FOOD':'Staple food'}
+        sorted_fw.loc[:,'Type of food'] = sorted_fw['Type of food'].replace(replacement)
+
+        # Add how many entries per kitchen 
+        entry_counts = sorted_fw.groupby(['Property','Kitchen']).size().reset_index(name='Count')        
+
         temp_dir = tempfile.gettempdir()  # Gets the temporary directory
         file_path = os.path.join(temp_dir, f"{company_name}_FW&CV_Entries.xlsx")
         # Read dataframe into excel
@@ -117,6 +123,7 @@ def process_entries():
         # Write each DataFrame to a specific sheet
             sorted_fw.to_excel(writer, sheet_name='FW', index=False)
             sorted_cv.to_excel(writer, sheet_name='CV', index=False)
+            entry_counts.to_excel(writer, sheet_name='FW Entry Counts', index=False)
         # Return the file as a download
         return send_file(file_path, as_attachment=True)
     
@@ -222,6 +229,16 @@ def process_dcon():
         full_schedule_pbl2['YEAR'] = full_schedule_pbl2['OPERATION_DATE'].dt.year
         full_schedule_pbl2['MONTH'] = full_schedule_pbl2['OPERATION_DATE'].dt.month
 
+        # Adding start and end date to consistency
+        bounds = full_schedule_pbl2.groupby(['COMPANY_NAME', 'KICHEN_NAME']).agg(
+            START_DATE=('OPERATION_DATE','min'),
+            END_DATE=('OPERATION_DATE','max')
+        ).reset_index()
+
+        # Strip time
+        bounds['START_DATE'] = bounds['START_DATE'].dt.date
+        bounds['END_DATE'] = bounds['END_DATE'].dt.date
+
         total_shift_per_month = full_schedule_pbl2.groupby(['COMPANY_NAME', 'KICHEN_NAME', 'YEAR', 'MONTH']).agg(
             TOTAL_SHIFTS=('SHIFT_ID', 'count')
         ).reset_index()
@@ -256,12 +273,13 @@ def process_dcon():
         month_column = {'CONSISTENCY_OLD': 'CONSISTENCY', 'COMP_SHIFTS_OLD': 'COMPLETE_SHIFTS'}
         month = dcon_per_month.rename(columns=month_column)
         overall = dcon_overall.rename(columns=overall_column)
+        overall_2 = overall.merge(bounds, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
 
         temp_dir = tempfile.gettempdir()
         file_path = os.path.join(temp_dir, f"{company_name}_Consistency.xlsx")
         with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
             month.to_excel(writer, sheet_name='Monthly Consistency', index=False)
-            overall.to_excel(writer, sheet_name='Overall Consistency')
+            overall_2.to_excel(writer, sheet_name='Overall Consistency', index=False)
         logger.info("Excel file created successfully")
         return send_file(file_path, as_attachment=True)
 
