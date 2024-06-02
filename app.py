@@ -352,5 +352,6 @@ def process_dcon():
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=10000)
+    pass
 
