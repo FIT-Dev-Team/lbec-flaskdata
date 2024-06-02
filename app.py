@@ -295,7 +295,7 @@ def process_dcon():
         month = dcon_per_month.rename(columns=month_column)
         overall = dcon_overall.rename(columns=overall_column)
         overall_2 = overall.merge(bounds, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
-
+        temp_dir = tempfile.mkdtemp()
         # Group the DataFrame by COMPANY_NAME and KICHEN_NAME
         grouped = month.groupby(['COMPANY_NAME', 'KICHEN_NAME'])
         
@@ -319,39 +319,42 @@ def process_dcon():
             plt.grid(True)
             plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-            temp_dir = tempfile.gettempdir()
-            filename = f"{company_name}_{kitchen_name}_consistency.png".replace(' ', '_')
-            file_path = os.path.join(temp_dir, filename)
-            plt.savefig(file_path, bbox_inches='tight')
+            # Create a unique filename for each plot
+            png_filename = f"{company_name}_{kitchen_name}_consistency.png".replace(' ', '_')
+            png_path = os.path.join(temp_dir, png_filename)
+            plt.savefig(png_path, bbox_inches='tight')
             plt.close()
 
-        # Path for Excel file
-        temp_dir = tempfile.gettempdir()
-        file_path = os.path.join(temp_dir, f"{company_name}_Consistency.xlsx")
+        # Create a unique filename for the Excel file
+        excel_filename = f"{company_name}_Consistency.xlsx".replace(' ', '_')
+        excel_path = os.path.join(temp_dir, excel_filename)
 
         # Write Excel file
-        with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
+        with pd.ExcelWriter(excel_path, engine='xlsxwriter') as writer:
             month.to_excel(writer, sheet_name='Monthly Consistency', index=False)
             overall_2.to_excel(writer, sheet_name='Overall Consistency', index=False)
-        logger.info("Excel file created successfully")
+        logger.info(f"Excel file created at {excel_path}")
 
-        # Create a Zip file
-        zip_filename = f"{company_name}_Consistency.zip"
+        # Create a unique Zip file
+        zip_filename = f"{company_name}_Consistency.zip".replace(' ', '_')
         zip_path = os.path.join(temp_dir, zip_filename)
         with zipfile.ZipFile(zip_path, 'w') as zipf:
-            zipf.write(file_path, os.path.basename(file_path))
+            zipf.write(excel_path, os.path.basename(excel_path))
             for (company_name, kitchen_name), group in grouped:
-                filename = f"{company_name}_{kitchen_name}_consistency.png".replace(' ', '_')
-                file_path = os.path.join(temp_dir, filename)
-                zipf.write(file_path, os.path.basename(file_path))
+                png_filename = f"{company_name}_{kitchen_name}_consistency.png".replace(' ', '_')
+                png_path = os.path.join(temp_dir, png_filename)
+                zipf.write(png_path, os.path.basename(png_path))
 
-        logger.info("Zip file created successfully")
+        logger.info(f"Zip file created at {zip_path}")
         return send_file(zip_path, as_attachment=True)
 
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
-    pass
+
+
+        
 
