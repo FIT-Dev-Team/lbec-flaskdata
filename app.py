@@ -9,6 +9,13 @@ from dotenv import load_dotenv
 import logging
 import tempfile
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib
+import zipfile
+logging.getLogger('matplotlib.category').setLevel(logging.WARNING)
+
+
+matplotlib.use('Agg')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -225,7 +232,9 @@ def process_dcon():
 
         full_schedule_df = pd.DataFrame(full_schedule_data)
         full_schedule_pbl = full_schedule_df.merge(firstdate, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
+        full_schedule_pbl2 = full_schedule_pbl.copy()
         full_schedule_pbl2 = full_schedule_pbl[full_schedule_pbl['OPERATION_DATE'] > full_schedule_pbl['FirstDate']]
+        full_schedule_pbl2 = full_schedule_pbl2.copy()
         full_schedule_pbl2['YEAR'] = full_schedule_pbl2['OPERATION_DATE'].dt.year
         full_schedule_pbl2['MONTH'] = full_schedule_pbl2['OPERATION_DATE'].dt.month
 
@@ -243,6 +252,18 @@ def process_dcon():
             TOTAL_SHIFTS=('SHIFT_ID', 'count')
         ).reset_index()
         logger.info("Calculated total shifts per month")
+        def func(x):
+            try:
+                if opening_shifts.where((opening_shifts['DAY_OF_WEEK']==x['CLOSE_DATE'].day_name().upper()) &
+                                        (opening_shifts['KICHEN_NAME']==x['KICHEN_NAME'])&(opening_shifts['COMPANY_NAME']==x['COMPANY_NAME']))[x['SHIFT_ID']].dropna().item()=='N':
+                    return False
+            except:
+                return True
+            return True
+        closed['IS_REDONDANT']=closed.apply(lambda x: 'N' if func(x) else 'Y', axis=1)
+
+        #We drop the duplicates
+        closed = closed[closed['IS_REDONDANT']=='N']
 
         closed['YEAR'] = closed['CLOSE_DATE'].dt.year
         closed['MONTH'] = closed['CLOSE_DATE'].dt.month
@@ -275,19 +296,61 @@ def process_dcon():
         overall = dcon_overall.rename(columns=overall_column)
         overall_2 = overall.merge(bounds, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
 
+        # Group the DataFrame by COMPANY_NAME and KICHEN_NAME
+        grouped = month.groupby(['COMPANY_NAME', 'KICHEN_NAME'])
+        
+
+        # Loop through each group
+        for (company_name, kitchen_name), group in grouped:
+            plt.figure(figsize=(12, 8)) 
+            group = group.sort_values(by=['YEAR', 'MONTH'])
+            group['YEAR'] = group['YEAR'].astype(str)
+            group['MONTH'] = group['MONTH'].astype(str)
+            x_values = group['MONTH'] + '-' + group['YEAR']
+            plt.plot(x_values, group['CONSISTENCY'], marker='o', label='Consistency', color='purple')
+            for i, txt in enumerate(group['CONSISTENCY']):
+                plt.text(x_values.iloc[i], group['CONSISTENCY'].iloc[i] + 0.02, f'{txt:.2f}', ha='center', va='bottom', fontsize=8)
+            plt.title(f'Monthly Consistency for {kitchen_name} at {company_name}')
+            plt.xlabel('Month-Year')
+            plt.ylabel('Consistency')
+            plt.xticks(rotation=45)
+            plt.ylim(0, 1.1)
+            plt.yticks(np.arange(0, 1.1, 0.1))
+            plt.grid(True)
+            plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+            temp_dir = tempfile.gettempdir()
+            filename = f"{company_name}_{kitchen_name}_consistency.png".replace(' ', '_')
+            file_path = os.path.join(temp_dir, filename)
+            plt.savefig(file_path, bbox_inches='tight')
+            plt.close()
+
+        # Path for Excel file
         temp_dir = tempfile.gettempdir()
         file_path = os.path.join(temp_dir, f"{company_name}_Consistency.xlsx")
+
+        # Write Excel file
         with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
             month.to_excel(writer, sheet_name='Monthly Consistency', index=False)
             overall_2.to_excel(writer, sheet_name='Overall Consistency', index=False)
         logger.info("Excel file created successfully")
-        return send_file(file_path, as_attachment=True)
+
+        # Create a Zip file
+        zip_filename = f"{company_name}_Consistency.zip"
+        zip_path = os.path.join(temp_dir, zip_filename)
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            zipf.write(file_path, os.path.basename(file_path))
+            for (company_name, kitchen_name), group in grouped:
+                filename = f"{company_name}_{kitchen_name}_consistency.png".replace(' ', '_')
+                file_path = os.path.join(temp_dir, filename)
+                zipf.write(file_path, os.path.basename(file_path))
+
+        logger.info("Zip file created successfully")
+        return send_file(zip_path, as_attachment=True)
 
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
-    pass
+    app.run(host='0.0.0.0', port=5000, debug=True)
 
