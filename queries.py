@@ -154,6 +154,7 @@ def fetch_fwcv(engine, company_name, end_date):
     kos.OPERATION_SHIFT_TYPE='SHIFT_MAIN'
     WHERE 
     kfw.ACTIVE = 'Y' AND 
+    cp.COMPANY_NAME != 'Constance Belle Mare Plage' AND -- Take out CBMP
     ( NOT(kc.AMOUNT IS NULL) OR ks.PRODUCTION_KITCHEN_FLAG='Y') AND
     cp.COMPANY_STATUS  = 'ACTIVE' AND
     cp.ACTIVE='Y' AND
@@ -216,6 +217,7 @@ def fetch_opening_shifts(engine, company_name):
     JOIN 
     KITCHEN_STATION ks on kos.KC_STT_ID = ks.KC_STT_ID
     WHERE kos.ACTIVE = 'Y'   
+        AND cp.COMPANY_NAME != 'Constance Belle Mare Plage' -- Take out CBMP
         AND cp.COMPANY_NAME LIKE '%{company_name}%' AND
         cp.COMPANY_STATUS = 'ACTIVE'
         AND 
