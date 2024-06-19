@@ -12,6 +12,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import zipfile
+from werkzeug.utils import secure_filename
+
 logging.getLogger('matplotlib.category').setLevel(logging.WARNING)
 
 
@@ -142,7 +144,7 @@ def process_entries():
 def form_dcon():
     return render_template('form_dcon.html')
 
-@app.route('/process_dcon', methods=['POST'])
+@app.route('/process_dcon', methods=['GET','POST'])
 def process_dcon():
     logger.info("Processing the dcon")
     company_name = request.form['company_name']
@@ -295,12 +297,17 @@ def process_dcon():
         month = dcon_per_month.rename(columns=month_column)
         overall = dcon_overall.rename(columns=overall_column)
         overall_2 = overall.merge(bounds, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
-
+        temp_dir = tempfile.mkdtemp()
         # Group the DataFrame by COMPANY_NAME and KICHEN_NAME
         grouped = month.groupby(['COMPANY_NAME', 'KICHEN_NAME'])
         
+        
+# Create a temporary directory for images
+        temp_dir = os.path.join('static', 'temp_images')
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
 
-        # Loop through each group
+        image_paths = []
         for (company_name, kitchen_name), group in grouped:
             plt.figure(figsize=(12, 8)) 
             group = group.sort_values(by=['YEAR', 'MONTH'])
@@ -319,39 +326,54 @@ def process_dcon():
             plt.grid(True)
             plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-            temp_dir = tempfile.gettempdir()
+            # Create a unique filename for each plot
             filename = f"{company_name}_{kitchen_name}_consistency.png".replace(' ', '_')
-            file_path = os.path.join(temp_dir, filename)
-            plt.savefig(file_path, bbox_inches='tight')
+            filename = secure_filename(filename)
+            png_path = os.path.join(temp_dir, filename)
+            plt.savefig(png_path, bbox_inches='tight')
             plt.close()
+            image_paths.append(os.path.join('temp_images', filename))
 
-        # Path for Excel file
-        temp_dir = tempfile.gettempdir()
-        file_path = os.path.join(temp_dir, f"{company_name}_Consistency.xlsx")
+        # Convert dataframes to HTML
+        # Rename columns
+        month = month.rename(columns={
+            'COMPANY_NAME': 'Hotel',
+            'KICHEN_NAME': 'Restaurant',
+            'YEAR': 'Year',
+            'MONTH': 'Month',
+            'TOTAL_SHIFTS': 'Total Shifts',
+            'COMPLETE_SHIFTS': 'Complete Shifts',
+            'CLOSED_SHIFTS': 'Closed Shifts',
+            'CONSISTENCY': 'Consistency'
+        })
 
-        # Write Excel file
-        with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
-            month.to_excel(writer, sheet_name='Monthly Consistency', index=False)
-            overall_2.to_excel(writer, sheet_name='Overall Consistency', index=False)
-        logger.info("Excel file created successfully")
+        overall_2 = overall_2.rename(columns={
+            'COMPANY_NAME': 'Hotel',
+            'KICHEN_NAME': 'Restaurant',
+            'TOTAL_SHIFTS': 'Total Shifts',
+            'COMPLETE_SHIFTS': 'Complete Shifts',
+            'CLOSED_SHIFTS': 'Closed Shifts',
+            'CONSISTENCY': 'Consistency',
+            'START_DATE': 'Start Date',
+            'END_DATE': 'End Date'
+        })
 
-        # Create a Zip file
-        zip_filename = f"{company_name}_Consistency.zip"
-        zip_path = os.path.join(temp_dir, zip_filename)
-        with zipfile.ZipFile(zip_path, 'w') as zipf:
-            zipf.write(file_path, os.path.basename(file_path))
-            for (company_name, kitchen_name), group in grouped:
-                filename = f"{company_name}_{kitchen_name}_consistency.png".replace(' ', '_')
-                file_path = os.path.join(temp_dir, filename)
-                zipf.write(file_path, os.path.basename(file_path))
+        # Convert dataframes to HTML
+        month_table = month.to_html(classes='table table-striped table-bordered table-hover', index=False)
+        overall_table = overall_2.to_html(classes='table table-striped table-bordered table-hover', index=True)
 
-        logger.info("Zip file created successfully")
-        return send_file(zip_path, as_attachment=True)
-
+        # Render the template with data
+        return render_template('consistency.html', 
+                               month_table=month_table, 
+                               overall_table=overall_table, 
+                               image_paths=image_paths)
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
-    pass
+
+
+        
 

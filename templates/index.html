@@ -3,12 +3,16 @@
 {% block title %}Pepé{% endblock %}
 
 {% block content %}
-    <h2>Welcome to de APP</h2>
-    <p>Please select a functionality to execute:</p>
-    <ul>
-        <li><a href="{{ url_for('form_total_fw') }}">Total FW<img src="/static/garbage.png" width="32" height="32"></a></li>
-        <li><a href="{{ url_for('form_entries') }}">FW & CV Entries<img src="/static/diet.png" width="32" height="32"></a></li>
-        <li><a href="{{ url_for('form_dcon') }}">Data Consistency <img src="/static/consistency.png" width="32" height="32"></a></li>
-        <!-- Add more links to other functionalities if needed -->
-    </ul>
+    <div class="d-flex justify-content-center align-items-center" style="height: 20vh;">
+        <div>
+            <h2>Welcome to de APP</h2>
+            <p>Please select a functionality to execute:</p>
+            <ul>
+                <li><a href="{{ url_for('form_total_fw') }}">Total FW<img src="/static/garbage.png" width="32" height="32"></a></li>
+                <li><a href="{{ url_for('form_entries') }}">FW & CV Entries<img src="/static/diet.png" width="32" height="32"></a></li>
+                <li><a href="{{ url_for('form_dcon') }}">Data Consistency <img src="/static/consistency.png" width="32" height="32"></a></li>
+                <!-- Add more links to other functionalities if needed -->
+            </ul>
+        </div>
+    </div>
 {% endblock %}

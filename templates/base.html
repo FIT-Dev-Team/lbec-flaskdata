@@ -7,19 +7,15 @@
     <!-- Bootstrap CSS via CDN -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-     <!-- Favicon -->
-     <link rel="icon" href="{{ url_for('static', filename='goated.png') }}" type="image/x-icon">
-
-     <!-- Bootstrap CSS via CDN -->
-     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='goated.png') }}" type="image/x-icon">
     <!-- Roboto Font -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
     <!-- Navbar with Bootstrap classes -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="{{ url_for('index') }}">Pepé<img src="/static/goated.png" width="48" height="48"></a>
+        <a class="navbar-brand" href="{{ url_for('index') }}">Pepé<img src="{{ url_for('static', filename='goated.png') }}" width="48" height="48"></a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -43,7 +39,7 @@
     </nav>
 
     <!-- Content container -->
-    <div class="container mt-4">
+    <div class="{{ container_class|default('container') }} mt-4">
         {% block content %}{% endblock %}
     </div>
 
