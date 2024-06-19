@@ -42,3 +42,43 @@ footer {
     background-color: #f8f9fa;
     border-top: 1px solid #e9ecef;
 }
+
+
+.table {
+    width: 100%;
+    margin-bottom: 1rem;
+    color: #212529;
+    background-color: #fff;
+    border-collapse: collapse;
+}
+
+.table-bordered {
+    border: 1px solid #dee2e6;
+}
+
+.table-bordered th,
+.table-bordered td {
+    border: 1px solid #dee2e6;
+    padding: 8px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    color: #495057;
+    background-color: rgba(0, 0, 0, 0.075);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.table thead th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
