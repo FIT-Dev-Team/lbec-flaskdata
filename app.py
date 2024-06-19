@@ -144,7 +144,7 @@ def process_entries():
 def form_dcon():
     return render_template('form_dcon.html')
 
-@app.route('/process_dcon', methods=['POST'])
+@app.route('/process_dcon', methods=['GET','POST'])
 def process_dcon():
     logger.info("Processing the dcon")
     company_name = request.form['company_name']
@@ -359,8 +359,8 @@ def process_dcon():
         })
 
         # Convert dataframes to HTML
-        month_table = month.to_html(classes='table table-striped table-bordered table-hover')
-        overall_table = overall_2.to_html(classes='table table-striped table-bordered table-hover')
+        month_table = month.to_html(classes='table table-striped table-bordered table-hover', index=False)
+        overall_table = overall_2.to_html(classes='table table-striped table-bordered table-hover', index=True)
 
         # Render the template with data
         return render_template('consistency.html', 
