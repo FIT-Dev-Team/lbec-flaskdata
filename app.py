@@ -361,18 +361,37 @@ def process_dcon():
         # Convert dataframes to HTML
         month_table = month.to_html(classes='table table-striped table-bordered table-hover', index=False)
         overall_table = overall_2.to_html(classes='table table-striped table-bordered table-hover', index=True)
-
-        # Render the template with data
-        return render_template('consistency.html', 
-                               month_table=month_table, 
-                               overall_table=overall_table, 
-                               image_paths=image_paths)
+        # Example: Assuming `month` and `overall` are the dataframes you want to save
+        temp_dir = tempfile.gettempdir()
+        file_path = os.path.join(temp_dir, f"{company_name}_dcon_data.xlsx")
+        
+        with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
+            month.to_excel(writer, sheet_name='Monthly Data', index=False)
+            overall_2.to_excel(writer, sheet_name='Overall Data', index=True)
+        
+        # Add the download link to the HTML response
+        month_table = month.to_html(classes='table table-striped table-bordered table-hover', index=False)
+        overall_table = overall_2.to_html(classes='table table-striped table-bordered table-hover', index=True)
+        
+        return render_template('consistency.html',
+                               month_table=month_table,
+                               overall_table=overall_table,
+                               image_paths=image_paths,
+                               download_link=f"/download_excel/{os.path.basename(file_path)}")
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
+    
+@app.route('/download_excel/<filename>')
+def download_excel(filename):
+    temp_dir = tempfile.gettempdir()
+    file_path = os.path.join(temp_dir, filename)
+    return send_file(file_path, as_attachment=True)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
+
+
 
 
         
