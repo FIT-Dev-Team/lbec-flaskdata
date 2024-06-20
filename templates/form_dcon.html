@@ -3,7 +3,8 @@
 {% block title %}Data Consistency{% endblock %}
 
 {% block content %}
-    <h2>Data Consistency<img src="/static/consistency.png" width="32" height="32"></h2>
+    <center><h2>Data Consistency<img src="/static/consistency.png" width="32" height="32"></h2>
+    <p> Monthly consistency since after first baseline & graphs for download.</p></center>
     <form action="{{ url_for('process_dcon') }}" method="POST">
         <label for="company_name">Company Name:</label>
         <input type="text" name="company_name" id="company_name">
@@ -11,6 +12,6 @@
         <label for="end_date">End Date:</label>
         <input type="date" name="end_date" id="end_date"> 
         <br>
-        <button type="submit" class="btn btn-primary">Submit</button>
+        <button type="submit" class="btn btn-primary" style="margin: 10px auto; display: block;">Submit</button>
     </form>
 {% endblock %}

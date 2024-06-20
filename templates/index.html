@@ -3,14 +3,17 @@
 {% block title %}Pepé{% endblock %}
 
 {% block content %}
-    <div class="d-flex justify-content-center align-items-center" style="height: 20vh;">
+    <div class="d-flex justify-content-center align-items-center">
         <div>
             <h2>Welcome to de APP</h2>
             <p>Please select a functionality to execute:</p>
             <ul>
                 <li><a href="{{ url_for('form_total_fw') }}">Total FW<img src="/static/garbage.png" width="32" height="32"></a></li>
+                <p> Total food waste in kg per type & percentage calculation.</p>
                 <li><a href="{{ url_for('form_entries') }}">FW & CV Entries<img src="/static/diet.png" width="32" height="32"></a></li>
+                <p> Raw food waste and cover entries & food waste entry count.</p>
                 <li><a href="{{ url_for('form_dcon') }}">Data Consistency <img src="/static/consistency.png" width="32" height="32"></a></li>
+                <p> Monthly consistency since after first baseline & graphs for download.</p>
                 <!-- Add more links to other functionalities if needed -->
             </ul>
         </div>
