@@ -1,7 +1,7 @@
 This is a simple flask web app being hosted for free on render.com
 
 ### Total FW 
-Total FW feature will extract total kg of food per type being recorded from start to end date that are input and calculate percentage of total kg of food per type.
+Total FW feature will extract total kg of food per type being recorded from start to end date that are input.
 Output = '.csv file'
 
 ### FW & CV Entries
