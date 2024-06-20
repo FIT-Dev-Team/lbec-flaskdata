@@ -4,7 +4,7 @@
 
 {% block content %}
     <center><h2>Total Food Waste<img src="/static/garbage.png" width="32" height="32"></h2>
-    <p> Total food waste in kg per type & percentage calculation.</p></center>
+    <p> Total food waste in kg per type.</p></center>
     <form action="{{ url_for('process_total_fw') }}" method="POST">
         <label for="company_name">Company Name:</label>
         <input type="text" name="company_name" id="company_name">
