@@ -6,15 +6,14 @@
     <center><h2>Total Food Waste<img src="/static/garbage.png" width="32" height="32"></h2>
     <p> Total food waste in kg per type.</p></center>
     <form action="{{ url_for('process_total_fw') }}" method="POST">
-        <label for="company_name">Company Name:</label>
+       <center> <label for="company_name">Company Name:</label>
         <input type="text" name="company_name" id="company_name">
         <br>
         <label for="start_date">Start Date (YYYY-MM-DD):</label>
         <input type="date" name="start_date" id="start_date">
         <br>
         <label for="end_date">End Date (YYYY-MM-DD):</label>
-        <input type="date" name="end_date" id="end_date">
-        <br>
+        <input type="date" name="end_date" id="end_date"></center>
         <button class="btn btn-primary" style="margin: 10px auto; display: block;">Submit</button>
     </form>
 {% endblock %}

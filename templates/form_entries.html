@@ -6,15 +6,14 @@
     <center><h2>FW & CV Entries<img src="/static/diet.png" width="32" height="32"></h2>
     <p> Raw food waste and cover entries & food waste entry count.</p></center>
     <form action="{{ url_for('process_entries') }}" method="POST">
-        <label for="company_name">Company Name:</label>
+        <center><label for="company_name">Company Name:</label>
         <input type="text" name="company_name" id="company_name">
         <br>
         <label for="start_date">Start Date (YYYY-MM-DD):</label>
         <input type="date" name="start_date" id="start_date">
         <br>
         <label for="end_date">End Date (YYYY-MM-DD):</label>
-        <input type="date" name="end_date" id="end_date">
-        <br>
+        <input type="date" name="end_date" id="end_date"></center>
         <button type="submit" class="btn btn-primary" style="margin: 10px auto; display: block;">Submit</button>
     </form>
 {% endblock %}

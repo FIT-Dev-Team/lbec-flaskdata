@@ -21,7 +21,7 @@
 
 /* Content Container Styling */
 .container {
-    max-width: 800px; /* Limit container width for better readability */
+    max-width: 600px; /* Limit container width for better readability */
     background-color: #f9f9f9; /* Light gray background */
     padding: 20px; /* Add some inner padding */
     border-radius: 8px; /* Rounded corners */
