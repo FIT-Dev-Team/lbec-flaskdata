@@ -10,5 +10,5 @@ Output = '.xlsx file'
 
 ### Consistency 
 This feature will display monthly and overall consistency per kitchen based on end date input by the user. It will also generate monthly data consistency chart per kitchen available to download. 
-Output ='.png file' 
+Output ='.xlsx & .png files' 
 
