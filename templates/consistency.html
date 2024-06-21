@@ -2,32 +2,31 @@
 
 {% block title %}Consistency Report{% endblock %}
 
-{% set container_class = "container-fluid" %}
+{% set show_container = false %}
 
 {% block content %}
 <div>
-    <h1 class="text-center my-4">Consistency Report</h1>
-    
-    <!-- Monthly Consistency Table -->
+    <h1 class="text-center my-4">Consistency Report <img src="/static/consistency.png" width="48" height="48" </h1>
+    <center><a href="{{ download_link }}" download class="btn btn-success">Download as Excel file</a></center>
+    <!-- Overall Table -->
     {% if month_table %}
-        <h2 class="text-center">Monthly Consistency</h2>
-        <div class="table-responsive mb-4">
-            {{ month_table|safe }}
-        </div>
-    {% else %}
-        <p class="text-center">No monthly consistency data available.</p>
-    {% endif %}
-    
-    <!-- Overall Consistency Table -->
-    {% if overall_table %}
         <h2 class="text-center">Overall Consistency</h2>
         <div class="table-responsive mb-4">
             {{ overall_table|safe }}
         </div>
     {% else %}
+        <p class="text-center">No monthly consistency data available.</p>
+    {% endif %}
+    
+    <!-- Monthly Consistency Table -->
+    {% if overall_table %}
+        <h2 class="text-center">Monthly Consistency</h2>
+        <div class="table-responsive mb-4">
+            {{ month_table|safe }}
+        </div>
+    {% else %}
         <p class="text-center">No overall consistency data available.</p>
     {% endif %}
-    <center><a href="{{ download_link }}" download class="btn btn-primary">Download Excel</a></center>
     <!-- Consistency Graphs -->
     {% if image_paths %}
         <h2 class="text-center">Consistency Graphs</h2>

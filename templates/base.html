@@ -39,9 +39,13 @@
     </nav>
 
     <!-- Content container -->
-    <div class="{{ container_class|default('container') }} mt-4">
+    {% if show_container is not defined or show_container %}
+        <div class="container mt-4">
+    {% endif %}
         {% block content %}{% endblock %}
-    </div>
+    {% if show_container is not defined or show_container %}
+        </div>
+    {% endif %}
 
     <!-- Bootstrap JavaScript via CDN (Popper and jQuery required for some components) -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>

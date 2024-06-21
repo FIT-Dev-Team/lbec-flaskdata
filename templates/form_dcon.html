@@ -2,16 +2,53 @@
 
 {% block title %}Data Consistency{% endblock %}
 
+{% set show_container = false %}
+
 {% block content %}
-    <center><h2>Data Consistency<img src="/static/consistency.png" width="32" height="32"></h2>
-    <p> Monthly consistency since after first baseline & graphs for download.</p></center>
-    <form action="{{ url_for('process_dcon') }}" method="POST">
-        <center><label for="company_name">Company Name:</label>
-        <input type="text" name="company_name" id="company_name">
-        <br>
+
+<style>
+    .custom-container {
+        background-color: lightblue;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        max-width: 600px;
+        margin: 40px auto;
+    }
+    .custom-form label {
+        display: block;
+        margin-top: 10px;
+    }
+    .custom-form input {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        box-sizing: border-box;
+    }
+    .custom-form button {
+        width: 100%;
+        padding: 10px;
+        border-radius: 5px;
+    }
+</style>
+<div class="custom-container">
+    <center>
+        <h2>Data Consistency <img src="/static/consistency.png" width="32" height="32"></h2>
+        <p>Monthly consistency since after first baseline & graphs for download.</p>
+    </center>
+    <form action="{{ url_for('process_dcon') }}" method="POST" class="custom-form">
+        <label for="company_name">Company Name:</label>
+        <input type="text" name="company_name" id="company_name" required>
+
         <label for="end_date">End Date:</label>
-        <input type="date" name="end_date" id="end_date"> 
-        <p style="color:orangered"> <strong>Consistency is counted after the 1st Baseline onwards.</strong> </p></center>
-        <button type="submit" class="btn btn-primary" style="margin: 10px auto; display: block;">Submit</button>
+        <input type="date" name="end_date" id="end_date" required>
+
+        <p style="color:orangered; text-align:center;"><strong>Consistency is counted after the 1st Baseline onwards.</strong></p>
+
+        <button type="submit" class="btn btn-primary">Submit</button>
     </form>
+</div>
 {% endblock %}
