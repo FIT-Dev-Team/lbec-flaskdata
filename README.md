@@ -1,4 +1,4 @@
-The Development of this Web App is now on hold due to changes in the formulas & development of standardization of formulas.
+The Development of this Web App is now on hold due to changes in the formulas & FIT standardization.
 
 This is a simple flask web app being hosted for free on render.com
 
