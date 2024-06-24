@@ -29,10 +29,10 @@ app = Flask(__name__)
 
 # Load configuration# Function to create MySQL connection using SQLAlchemy
 def create_connection():
-    user = os.getenv('username')
+    user = os.getenv('user')
     password = os.getenv('password')
     host = os.getenv('host')
-    database = os.getenv('database_name')
+    database = os.getenv('database')
     
     # Encode the password to handle special characters
     encoded_password = urllib.parse.quote_plus(password)
