@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import zipfile
 from werkzeug.utils import secure_filename
+import urllib.parse
 
 logging.getLogger('matplotlib.category').setLevel(logging.WARNING)
 
@@ -28,11 +29,16 @@ app = Flask(__name__)
 
 # Load configuration# Function to create MySQL connection using SQLAlchemy
 def create_connection():
-    user = os.getenv('USERNAME')
-    password = os.getenv('PASSWORD')
-    host = os.getenv('HOST')
-    database = os.getenv('DATABASE_NAME')
-    connection_str = f"mysql+mysqlconnector://{user}:{password}@{host}/{database}"
+    user = os.getenv('username')
+    password = os.getenv('password')
+    host = os.getenv('host')
+    database = os.getenv('database_name')
+    
+    # Encode the password to handle special characters
+    encoded_password = urllib.parse.quote_plus(password)
+    
+    # Create the connection string with the encoded password
+    connection_str = f"mysql+mysqlconnector://{user}:{encoded_password}@{host}/{database}"
     engine = sqlalchemy.create_engine(connection_str)
     return engine
 
