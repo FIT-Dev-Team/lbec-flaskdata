@@ -15,6 +15,7 @@ import zipfile
 from werkzeug.utils import secure_filename
 import urllib.parse
 from calculations import *
+from graph import *
 
 logging.getLogger('matplotlib.category').setLevel(logging.WARNING)
 
@@ -492,7 +493,7 @@ def process_dcon():
             overall_2['CONSISTENCY'] = (overall_2['COMP_SHIFTS'] / (overall_2['TOTAL_SHIFTS'] - overall_2['CLOSED_SHIFTS'])).round(2)
             overall_2 = overall_2[['COMPANY_NAME','KICHEN_NAME','CONSISTENCY','TOTAL_SHIFTS','CLOSED_SHIFTS','COMP_SHIFTS','START_DATE','END_DATE']]
 
-
+        print(plot_graph(month))
         # # Convert dataframes to HTML
         # month_table = month_dcon.to_html(classes='table table-striped table-bordered table-hover', index=False)
         # overall_table = overall_dcon.to_html(classes='table table-striped table-bordered table-hover', index=True)
@@ -513,6 +514,7 @@ def process_dcon():
                                overall_table=overall_table,
                                #image_paths=image_paths,
                                download_link=f"/download_excel/{os.path.basename(file_path)}")
+        
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
