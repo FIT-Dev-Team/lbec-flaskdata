@@ -757,8 +757,7 @@ def g_cover(start_date='2000-01-01', end_date=datetime.now(), company_name=None,
     return fwcv_comp
 
 # DCON (Ilann's Formula)
-def DCON(start_date='2000-01-01', end_date=datetime.now(), company_name=None, restaurant_name=None, TakingBaseline=True, grouping='overall', PerHotel=False, CONS=True, Dummies=True, Expired=False):
-    engine = create_connection()
+def DCON(engine,start_date='2000-01-01', end_date=datetime.now(), company_name=None, restaurant_name=None, TakingBaseline=True, grouping='overall', PerHotel=False, CONS=True, Dummies=True, Expired=False):
     conditions = ''
     # Construct the query conditions
     if company_name:

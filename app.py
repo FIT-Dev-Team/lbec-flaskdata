@@ -407,8 +407,8 @@ def process_dcon():
             ).reset_index()
 
             # Strip time
-            bounds['START_DATE'] = bounds['START_DATE'].dt.strftime('%d-%b-%Y')
-            bounds['END_DATE'] = bounds['END_DATE'].dt.strftime('%d-%b-%Y')
+            bounds['START_DATE'] = bounds['START_DATE'].dt.strftime('%Y-%m-%d')
+            bounds['END_DATE'] = bounds['END_DATE'].dt.strftime('%Y-%m-%d')
 
             total_shift_per_month = full_schedule_pbl2.groupby(['COMPANY_NAME', 'KICHEN_NAME', 'YEAR', 'MONTH']).agg(
                 TOTAL_SHIFTS=('SHIFT_ID', 'count')
@@ -457,22 +457,40 @@ def process_dcon():
             month = dcon_per_month.rename(columns=month_column)
             overall = dcon_overall.rename(columns=overall_column)
             overall_dcon_jun = overall.merge(bounds, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
+
             
             month['OPERATION_DATE'] = pd.to_datetime(month[['YEAR', 'MONTH']].assign(DAY=1))
 
-            # Step 2: Format the OPERATION_DATE to YYYY-MMM
-            month['OPERATION_DATE'] = month['OPERATION_DATE'].dt.strftime('%Y-%b')
+
 
             # Drop the original YEAR and MONTH columns if needed
             month = month.drop(columns=['YEAR', 'MONTH'])
             month_dcon_jun = month[['COMPANY_NAME','KICHEN_NAME','OPERATION_DATE','CONSISTENCY','TOTAL_SHIFTS','COMP_SHIFTS','CLOSED_SHIFTS']]
 
-            overall_dcon_after=DCON(company_name=company_name, start_date='2024-07-01', end_date=end_date, grouping='overall')
-            monthly_dcon_after=DCON(company_name=company_name, start_date='2024-07-01' ,end_date=end_date, grouping='monthly')
-        # Before concat need to 1. format datetime from DCON (monthly) 
-        # 2. Instead of concating overall, aggregate :) 
+            overall_dcon_after=DCON(engine=engine,company_name=company_name, start_date='2024-07-01', end_date=end_date, grouping='overall')
+            monthly_dcon_after=DCON(engine=engine,company_name=company_name, start_date='2024-07-01' ,end_date=end_date, grouping='monthly')
+           # change date format for after jun
+            # concat both monthly dfs
             month = pd.concat([month_dcon_jun, monthly_dcon_after], axis=0)
+            month = month.sort_values(by=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE'])
+            month['OPERATION_DATE'] = month['OPERATION_DATE'].dt.strftime('%b-%Y')
+            
+            overall_dcon_after['END_DATE'] = str(end_date)
+            overall_dcon_after['START_DATE'] = '2024-07-01'
+            # concat both overall dfs, turn into datetime and just aggregate for bounds and consistency
             overall_2 = pd.concat([overall_dcon_jun, overall_dcon_after], axis=0)
+            overall_2['START_DATE'] = pd.to_datetime(overall_2['START_DATE'])
+            overall_2['END_DATE'] = pd.to_datetime(overall_2['END_DATE'])
+            overall_2 = overall_2.groupby(['COMPANY_NAME', 'KICHEN_NAME'], as_index=False).agg(
+                {'TOTAL_SHIFTS':'sum',
+                 'CLOSED_SHIFTS':'sum',
+                 'COMP_SHIFTS':'sum',
+                 'START_DATE':'min',
+                 'END_DATE':'max',
+                 })
+            # calcuclate dcon and reorg columns
+            overall_2['CONSISTENCY'] = (overall_2['COMP_SHIFTS'] / (overall_2['TOTAL_SHIFTS'] - overall_2['CLOSED_SHIFTS'])).round(2)
+            overall_2 = overall_2[['COMPANY_NAME','KICHEN_NAME','CONSISTENCY','TOTAL_SHIFTS','CLOSED_SHIFTS','COMP_SHIFTS','START_DATE','END_DATE']]
 
 
         # # Convert dataframes to HTML
