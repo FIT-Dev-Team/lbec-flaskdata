@@ -22,10 +22,11 @@ def plot_graph(df):
             x='OPERATION_DATE', 
             y='CONSISTENCY', 
             title=f'Consistency per Month for {kitchen}',
-            labels={'OPERATION_DATE': 'Month', 'CONSISTENCY': 'Consistency'}
+            labels={'OPERATION_DATE': 'Month', 'CONSISTENCY': 'Consistency'},
+            text='CONSISTENCY'  # Add data labels (this shows consistency values)
         )
         
-        # Update layout for better visuals
+        # Update layout and traces for better visuals
         fig.update_layout(
             xaxis_title='Operation Date',
             yaxis_title='Consistency',
@@ -36,6 +37,13 @@ def plot_graph(df):
             )
         )
         
+        # Update traces to ensure data labels are shown
+        fig.update_traces(
+            textposition='top center',  # Position data labels at the top of each point
+            texttemplate='%{text:.2f}',  # Format the text to show up to 2 decimal places
+            mode='lines+markers+text',   # Ensure both lines, markers, and text are shown
+            marker=dict(size=8),         # Increase the size of the markers for better visibility
+        )
         # Convert the figure to an HTML string
         fig_html = pio.to_html(fig, full_html=False)
         charts_html.append(fig_html)
