@@ -470,6 +470,7 @@ def process_dcon():
 
             overall_dcon_after=DCON(engine=engine,company_name=company_name, start_date='2024-07-01', end_date=end_date, grouping='overall')
             monthly_dcon_after=DCON(engine=engine,company_name=company_name, start_date='2024-07-01' ,end_date=end_date, grouping='monthly')
+            logger.info("Calculated overall and monthly dcon after jun 2024")
            # change date format for after jun
             # concat both monthly dfs
             month = pd.concat([month_dcon_jun, monthly_dcon_after], axis=0)
@@ -493,11 +494,11 @@ def process_dcon():
             overall_2['CONSISTENCY'] = (overall_2['COMP_SHIFTS'] / (overall_2['TOTAL_SHIFTS'] - overall_2['CLOSED_SHIFTS'])).round(2)
             overall_2 = overall_2[['COMPANY_NAME','KICHEN_NAME','CONSISTENCY','TOTAL_SHIFTS','CLOSED_SHIFTS','COMP_SHIFTS','START_DATE','END_DATE']]
 
-        print(plot_graph(month))
-        # # Convert dataframes to HTML
-        # month_table = month_dcon.to_html(classes='table table-striped table-bordered table-hover', index=False)
-        # overall_table = overall_dcon.to_html(classes='table table-striped table-bordered table-hover', index=True)
-        # # Example: Assuming `month` and `overall` are the dataframes you want to save
+        # Generate charts from the `month` DataFrame
+        charts = plot_graph(month)
+        logger.info("Plotted graphs")
+
+        # Store the Excel file for download
         temp_dir = tempfile.gettempdir()
         file_path = os.path.join(temp_dir, f"{company_name}_dcon_data.xlsx")
         
@@ -505,16 +506,19 @@ def process_dcon():
             month.to_excel(writer, sheet_name='Monthly Data', index=False)
             overall_2.to_excel(writer, sheet_name='Overall Data', index=True)
 
-        # Add the download link to the HTML response
+        # Convert dataframes to HTML for the tables
         month_table = month.to_html(classes='table table-striped table-bordered table-hover', index=False)
         overall_table = overall_2.to_html(classes='table table-striped table-bordered table-hover', index=True)
         
-        return render_template('consistency.html',
-                               month_table=month_table,
-                               overall_table=overall_table,
-                               #image_paths=image_paths,
-                               download_link=f"/download_excel/{os.path.basename(file_path)}")
-        
+        # Render the HTML template with charts and data tables
+        return render_template(
+            'consistency.html',
+            month_table=month_table,
+            overall_table=overall_table,
+            charts_html=charts,
+            download_link=f"/download_excel/{os.path.basename(file_path)}"
+        )
+    
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"

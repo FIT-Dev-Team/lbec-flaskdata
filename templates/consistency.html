@@ -1,42 +1,46 @@
 {% extends "base.html" %}
 
+{% set show_container = false %} <!-- Disable container to allow full-width layout -->
+
 {% block title %}Consistency Report{% endblock %}
 
-{% set show_container = false %}
-
 {% block content %}
-<div>
-    <h1 class="text-center my-4">Consistency Report <img src="/static/consistency.png" width="48" height="48" </h1>
-    <center><a href="{{ download_link }}" download class="btn btn-success">Download as Excel file</a></center>
-    <!-- Overall Table -->
-    {% if month_table %}
-        <h2 class="text-center">Overall Consistency</h2>
-        <div class="table-responsive mb-4">
-            {{ overall_table|safe }}
-        </div>
-    {% else %}
-        <p class="text-center">No monthly consistency data available.</p>
-    {% endif %}
-    
+<div class="container-fluid" style="padding: 0; margin: 0;">  <!-- Full width with no padding -->
+    <h1 class="text-center my-4">Consistency Report</h1>
+
+    <div class="text-center mb-4">
+        <a href="{{ download_link }}" download class="btn btn-success">Download as Excel file</a>
+    </div>
+
     <!-- Monthly Consistency Table -->
-    {% if overall_table %}
+    {% if month_table %}
         <h2 class="text-center">Monthly Consistency</h2>
         <div class="table-responsive mb-4">
             {{ month_table|safe }}
         </div>
     {% else %}
+        <p class="text-center">No monthly consistency data available.</p>
+    {% endif %}
+    
+    <!-- Overall Consistency Table -->
+    {% if overall_table %}
+        <h2 class="text-center">Overall Consistency</h2>
+        <div class="table-responsive mb-4">
+            {{ overall_table|safe }}
+        </div>
+    {% else %}
         <p class="text-center">No overall consistency data available.</p>
     {% endif %}
+
     <!-- Consistency Graphs -->
-    {% if image_paths %}
+    {% if charts_html %}
         <h2 class="text-center">Consistency Graphs</h2>
-        <div class="row justify-content-center">
-            {% for img in image_paths %}
-                <div class="col-md-4 col-sm-6">
-                    <div class="card mb-4">
-                        <img src="{{ url_for('static', filename=img) }}" class="card-img-top" alt="Consistency Graph">
-                        <div class="card-body text-center">
-                            <a href="{{ url_for('static', filename=img) }}" download class="btn btn-primary">Download</a>
+        <div class="row">
+            {% for chart in charts_html %}
+                <div class="col-md-12 mb-4">  <!-- Full-width charts -->
+                    <div class="card">
+                        <div class="card-body" style="padding: 10px;">
+                            {{ chart|safe }}
                         </div>
                     </div>
                 </div>
