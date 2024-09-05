@@ -82,3 +82,36 @@ footer {
 .table-responsive {
     overflow-x: auto;
 }
+/* Ensure full-width layout and responsive table and chart spacing */
+.container-fluid {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+.table-responsive {
+    margin: 0 auto;
+    width: 100%;
+}
+
+.card {
+    width: 100%;  /* Ensure cards take full width */
+    margin-bottom: 20px;  /* Add some space between cards */
+}
+
+.card-body {
+    padding: 10px;  /* Ensure proper spacing within the card body */
+}
+
+.col-md-12 {
+    padding: 0;  /* Remove padding between chart columns */
+}
+
+.row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+h1, h2 {
+    margin-left: 10px;  /* Slightly offset the titles for alignment */
+}

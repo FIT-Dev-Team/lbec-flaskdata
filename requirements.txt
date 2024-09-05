@@ -1,7 +1,9 @@
 blinker==1.7.0
 click==8.1.7
+configparser==7.1.0
 contourpy==1.2.1
 cycler==0.12.1
+et-xmlfile==1.1.0
 Flask==3.0.3
 Flask-Scss==0.5
 Flask-SQLAlchemy==3.1.1
@@ -15,9 +17,11 @@ MarkupSafe==2.1.5
 matplotlib==3.8.4
 mysql-connector-python==8.3.0
 numpy==1.26.4
+openpyxl==3.1.5
 packaging==24.0
 pandas==2.2.2
 pillow==10.3.0
+plotly==5.24.0
 pyparsing==3.1.2
 pyScss==1.4.0
 python-dateutil==2.9.0.post0
@@ -27,6 +31,7 @@ secure==0.3.0
 setuptools==68.2.2
 six==1.16.0
 SQLAlchemy==2.0.29
+tenacity==9.0.0
 typing_extensions==4.11.0
 tzdata==2024.1
 Werkzeug==3.0.2
