@@ -12,7 +12,7 @@ Please note that due to free hosting, the site may take up to **50 seconds to lo
 
 ## Features
 
-- **Total Food Waste**: Generate Excel file summarizing food waste amounts across categories and food types for a given date range. Plate waste excluded.
+- **Total Food Waste**: Generate CSV file summarizing food waste amounts across categories and food types for a given date range. Plate waste excluded.
 - **Entry**: Get raw data of food waste and covers including amount of entries for a selected company and date range.
 - **Data Consistency**: Analyze data consistency over time, with breakdowns by kitchen and month.
 
@@ -59,10 +59,6 @@ To run the application locally, follow these steps:
     ```
 
 The app will run on `http://localhost:10000`.
-
----
-
-Here’s an updated **"How to Use"** section for your `README.md`, focusing on the website GUI instead of direct Python functions:
 
 ---
 
