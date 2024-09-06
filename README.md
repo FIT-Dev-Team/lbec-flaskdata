@@ -1,6 +1,6 @@
 # Data Consistency and Food Waste Management App
 
-This is a Flask web application designed for internal use within our organization to manage and analyze food waste and data consistency for various kitchens. The app fetches data from our internal database and processes it to generate reports, graphs, and exportable data.
+This is a Flask web application designed for internal use within our organization to manage and analyze food waste and data consistency for various kitchens. The app fetches data from our internal database and processes it to generate tables, graphs, and exportable data.
 
 ### **Note:**
 This application requires credentials to access the internal database and is not intended for public use. Only users with valid database credentials can run the app locally. 
