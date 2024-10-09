@@ -307,7 +307,7 @@ def process_dcon():
             month['OPERATION_DATE'] = pd.to_datetime(month[['YEAR', 'MONTH']].assign(DAY=1))
 
             # Step 2: Format the OPERATION_DATE to YYYY-MMM
-            month['OPERATION_DATE'] = month['OPERATION_DATE'].dt.strftime('%Y-%b')
+            month['OPERATION_DATE'] = month['OPERATION_DATE'].dt.strftime('%Y-%m')
 
             # Drop the original YEAR and MONTH columns if needed
             month = month.drop(columns=['YEAR', 'MONTH'])
@@ -530,7 +530,7 @@ def download_excel(filename):
     return send_file(file_path, as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=8008, debug=True)
 
 
 
