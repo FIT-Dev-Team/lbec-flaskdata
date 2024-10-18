@@ -44,6 +44,39 @@ def create_connection():
     engine = sqlalchemy.create_engine(connection_str)
     return engine
 
+def group_by_parent_company(df, column_name='COMPANY_NAME'):
+    # Define the mapping of keywords to parent companies
+    parent_company_mapping = {
+        'Hyatt': 'Hyatt',
+        'Andaz': 'Hyatt',
+        'Alila': 'Hyatt',
+        'Fuji Speedway': 'Hyatt',
+        'Constance': 'Constance',
+        'Marriott': 'Marriott',
+        'Courtyard': 'Marriott',
+        'Sheraton': 'Marriott',
+        'Chapter': 'Marriott',
+        'Aloft': 'Marriott',
+        'Magic': 'Magic',
+        'MCB': 'MCB',
+        'RH': 'RESTHOTELS',
+        'Hotel Lava': 'RESTHOTELS',
+        'UBC': 'UBC',
+        'Louvre': 'Jin Jiang',
+        'J\'AIME': 'J\'AIME'
+    }
+
+    # Function to get parent company based on the mapping
+    def get_parent_company(company_name):
+        for keyword, parent in parent_company_mapping.items():
+            if keyword in company_name:
+                return parent
+        return company_name  # Return the original name if no match is found
+
+    # Apply the function to the specified column
+    df['PARENT_COMPANY'] = df[column_name].apply(get_parent_company)
+    return df
+
 # Create engine object
 engine=create_connection()
 
@@ -522,7 +555,93 @@ def process_dcon():
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
+
+@app.route('/form_wdcon', methods=['GET', 'POST'])
+def form_wdcon():
+    return render_template('form_wdcon.html')
+
+@app.route('/process_wdcon', methods=['POST'])
+def process_wdcon():
+    logger.info("Processing the wdcon")
     
+    # Retrieve form data
+    start_date = request.form['start_date']
+    end_date = request.form['end_date']
+    parent = request.form.get('parent_company')
+    filter_option = request.form.get('calc_options')  # Matching form name
+    
+    # Set calculation method based on selection
+    if filter_option == 'cons_false':
+        CONS = False
+        method = 'Pre-July2024'
+    elif filter_option == 'cons_true':
+        CONS = True
+        method = 'Post-July2024'
+        
+    try:
+        # Calculate weekly DCON
+        week = DCON(engine=engine, start_date=start_date, end_date=end_date, grouping='weekly', CONS=CONS)
+        logger.info("Calculated weekly dcon")
+        
+        # Group by parent company
+        week = group_by_parent_company(week)
+        
+        # Filter by company
+        constance = week[week['PARENT_COMPANY'].isin(['Constance'])]
+        hyatt = week[week['PARENT_COMPANY'].isin(['Hyatt'])]
+        marriott = week[~week['PARENT_COMPANY'].isin(['Constance', 'Hyatt'])]
+
+        # Calculate average per group
+        avg_constance = constance['CONSISTENCY'].mean()
+        avg_hyatt = hyatt['CONSISTENCY'].mean()
+        avg_marriott = marriott['CONSISTENCY'].mean()
+        avg_per_parent = pd.DataFrame({
+            'PARENT_COMPANY': ['Constance', 'Hyatt', 'Marriott & Others'],
+            'CONSISTENCY': [avg_constance, avg_hyatt, avg_marriott]
+        })
+        
+        # Store the Excel file for download
+        temp_dir = tempfile.gettempdir()
+        file_path = os.path.join(temp_dir, f"all_dcon_{method}.xlsx")
+        
+        # Save different sheets for each company
+        with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
+            constance.to_excel(writer, sheet_name='Constance', index=False)
+            hyatt.to_excel(writer, sheet_name='Hyatt', index=False)
+            marriott.to_excel(writer, sheet_name='Marriott & Others', index=False)
+            avg_per_parent.to_excel(writer, sheet_name='Average per Group', index=False)
+        
+        # Generate download link
+        download_link = f"/download_excel/{os.path.basename(file_path)}"
+        
+        # Convert avg_per_parent DataFrame to HTML table
+        avg_per_parent_table = avg_per_parent.to_html(classes='table table-striped table-bordered table-hover', index=False)
+        
+        # Render the appropriate table based on parent company selection
+        if parent == 'constance':
+            return render_template(
+                'weekly_dcon.html',
+                week_table=constance.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                avg_per_parent_table=avg_per_parent_table,
+                download_link=download_link, parent_company=parent.capitalize()
+            )
+        elif parent == 'hyatt':
+            return render_template(
+                'weekly_dcon.html',
+                week_table=hyatt.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                avg_per_parent_table=avg_per_parent_table,
+                download_link=download_link, parent_company=parent.capitalize()
+            )
+        else:
+            return render_template(
+                'weekly_dcon.html',
+                week_table=marriott.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                avg_per_parent_table=avg_per_parent_table,
+                download_link=download_link, parent_company='Marriott & Others')
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        return f"An error occurred: {str(e)}"
+        
 @app.route('/download_excel/<filename>')
 def download_excel(filename):
     temp_dir = tempfile.gettempdir()
