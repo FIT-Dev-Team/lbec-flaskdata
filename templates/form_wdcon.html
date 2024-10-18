@@ -42,24 +42,31 @@
 <div class="custom-container">
     <center>
         <h2>Dcon per Week<img src="/static/goated.png" width="32" height="32"></h2>
-        <p>Select week and choose pre vs. post july calculation</p>
+        <p>Select week and choose pre vs. post july calculation.</p>
+        <p style="color: whitesmoke; text-align:center;"><strong>Keep selected period within 4 weeks for faster loading speed.</strong></p>
     </center>
     <form action="{{ url_for('process_wdcon') }}" method="POST" class="custom-form">
-        <!-- Existing form fields -->
-
         <label for="start_date">Start Date (YYYY-MM-DD):</label>
         <input type="date" name="start_date" id="start_date" required>
 
         <label for="end_date">End Date (YYYY-MM-DD):</label>
         <input type="date" name="end_date" id="end_date" required>
 
-        <!-- New dropdown list -->
-        <label for="filter_options">Select Filter Options:</label>
-        <select name="filter_options" id="filter_options">
+        <!-- Parent Company Dropdown -->
+        <label for="parent_company">Select Parent Company:</label>
+        <select name="parent_company" id="parent_company">
+            <option value="">--Please choose parent company--</option>
+            <option value="constance">Constance</option>
+            <option value="hyatt">Hyatt</option>
+            <option value="others">Marriott & Others</option>
+        </select>
+
+        <!-- Calculation Options Dropdown -->
+        <label for="calc_options">Select Calculation Options:</label>
+        <select name="calc_options" id="calc_options">
             <option value="">--Please choose calculation method--</option>
             <option value="cons_false">Pre-July 2024 | FW + CV</option>
             <option value="cons_true">Post July 2024 | Mandatory Categories +/- CV</option>
-            <!-- Add more options -->
         </select>
 
         <button type="submit" class="btn btn-primary">Submit</button>

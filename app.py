@@ -563,35 +563,66 @@ def form_wdcon():
 @app.route('/process_wdcon', methods=['POST'])
 def process_wdcon():
     logger.info("Processing the wdcon")
+    
+    # Retrieve form data
     start_date = request.form['start_date']
     end_date = request.form['end_date']
-    filter_option = request.form.get('filter_options')  # Get the selected option
+    parent = request.form.get('parent_company')
+    filter_option = request.form.get('calc_options')  # Matching form name
+    
+    # Set calculation method based on selection
     if filter_option == 'cons_false':
         CONS = False
         method = 'Pre-July2024'
     elif filter_option == 'cons_true':
         CONS = True
         method = 'Post-July2024'
+        
     try:
-        week=DCON(engine=engine, start_date=start_date, end_date=end_date, grouping='weekly', CONS=CONS)
+        # Calculate weekly DCON
+        week = DCON(engine=engine, start_date=start_date, end_date=end_date, grouping='weekly', CONS=CONS)
         logger.info("Calculated weekly dcon")
+        
+        # Group by parent company
         week = group_by_parent_company(week)
-        week_table = week.to_html(classes='table table-striped table-bordered table-hover', index=False)
-    
-
+        
+        # Filter by company
+        constance = week[week['PARENT_COMPANY'].isin(['Constance'])]
+        hyatt = week[week['PARENT_COMPANY'].isin(['Hyatt'])]
+        others = week[~week['PARENT_COMPANY'].isin(['Constance', 'Hyatt'])]
+        
         # Store the Excel file for download
         temp_dir = tempfile.gettempdir()
         file_path = os.path.join(temp_dir, f"all_dcon_{method}.xlsx")
         
+        # Save different sheets for each company
         with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
-            week.to_excel(writer, sheet_name='Weekly Data', index=False)
-            # overall_2.to_excel(writer, sheet_name='Overall Data', index=True)
-        return render_template(
-            'weekly_dcon.html',
-            week_table=week_table,
-            download_link=f"/download_excel/{os.path.basename(file_path)}"
-
-        )
+            constance.to_excel(writer, sheet_name='Constance', index=False)
+            hyatt.to_excel(writer, sheet_name='Hyatt', index=False)
+            others.to_excel(writer, sheet_name='Others', index=False)
+        
+        # Generate download link
+        download_link = f"/download_excel/{os.path.basename(file_path)}"
+        
+        # Render the appropriate table based on parent company selection
+        if parent == 'constance':
+            return render_template(
+                'weekly_dcon.html',
+                week_table=constance.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                download_link=download_link
+            )
+        elif parent == 'hyatt':
+            return render_template(
+                'weekly_dcon.html',
+                week_table=hyatt.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                download_link=download_link
+            )
+        else:
+            return render_template(
+                'weekly_dcon.html',
+                week_table=others.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                download_link=download_link
+            )
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
