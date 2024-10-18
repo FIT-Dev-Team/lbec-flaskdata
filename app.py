@@ -568,8 +568,10 @@ def process_wdcon():
     filter_option = request.form.get('filter_options')  # Get the selected option
     if filter_option == 'cons_false':
         CONS = False
+        method = 'Pre-July2024'
     elif filter_option == 'cons_true':
         CONS = True
+        method = 'Post-July2024'
     try:
         week=DCON(engine=engine, start_date=start_date, end_date=end_date, grouping='weekly', CONS=CONS)
         logger.info("Calculated weekly dcon")
@@ -579,7 +581,7 @@ def process_wdcon():
 
         # Store the Excel file for download
         temp_dir = tempfile.gettempdir()
-        file_path = os.path.join(temp_dir, f"all_dcon.xlsx")
+        file_path = os.path.join(temp_dir, f"all_dcon_{method}.xlsx")
         
         with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
             week.to_excel(writer, sheet_name='Weekly Data', index=False)
