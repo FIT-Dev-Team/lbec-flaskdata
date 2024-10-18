@@ -44,6 +44,39 @@ def create_connection():
     engine = sqlalchemy.create_engine(connection_str)
     return engine
 
+def group_by_parent_company(df, column_name='COMPANY_NAME'):
+    # Define the mapping of keywords to parent companies
+    parent_company_mapping = {
+        'Hyatt': 'Hyatt',
+        'Andaz': 'Hyatt',
+        'Alila': 'Hyatt',
+        'Fuji Speedway': 'Hyatt',
+        'Constance': 'Constance',
+        'Marriott': 'Marriott',
+        'Courtyard': 'Marriott',
+        'Sheraton': 'Marriott',
+        'Chapter': 'Marriott',
+        'Aloft': 'Marriott',
+        'Magic': 'Magic',
+        'MCB': 'MCB',
+        'RH': 'RESTHOTELS',
+        'Hotel Lava': 'RESTHOTELS',
+        'UBC': 'UBC',
+        'Louvre': 'Jin Jiang',
+        'J\'AIME': 'J\'AIME'
+    }
+
+    # Function to get parent company based on the mapping
+    def get_parent_company(company_name):
+        for keyword, parent in parent_company_mapping.items():
+            if keyword in company_name:
+                return parent
+        return company_name  # Return the original name if no match is found
+
+    # Apply the function to the specified column
+    df['PARENT_COMPANY'] = df[column_name].apply(get_parent_company)
+    return df
+
 # Create engine object
 engine=create_connection()
 
@@ -522,7 +555,45 @@ def process_dcon():
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
+
+@app.route('/form_wdcon', methods=['GET', 'POST'])
+def form_wdcon():
+    return render_template('form_wdcon.html')
+
+@app.route('/process_wdcon', methods=['POST'])
+def process_wdcon():
+    logger.info("Processing the wdcon")
+    start_date = request.form['start_date']
+    end_date = request.form['end_date']
+    filter_option = request.form.get('filter_options')  # Get the selected option
+    if filter_option == 'cons_false':
+        CONS = False
+    elif filter_option == 'cons_true':
+        CONS = True
+    try:
+        week=DCON(engine=engine, start_date=start_date, end_date=end_date, grouping='weekly', CONS=CONS)
+        logger.info("Calculated weekly dcon")
+        week = group_by_parent_company(week)
+        week_table = week.to_html(classes='table table-striped table-bordered table-hover', index=False)
     
+
+        # Store the Excel file for download
+        temp_dir = tempfile.gettempdir()
+        file_path = os.path.join(temp_dir, f"all_dcon.xlsx")
+        
+        with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
+            week.to_excel(writer, sheet_name='Weekly Data', index=False)
+            # overall_2.to_excel(writer, sheet_name='Overall Data', index=True)
+        return render_template(
+            'weekly_dcon.html',
+            week_table=week_table,
+            download_link=f"/download_excel/{os.path.basename(file_path)}"
+
+        )
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        return f"An error occurred: {str(e)}"
+        
 @app.route('/download_excel/<filename>')
 def download_excel(filename):
     temp_dir = tempfile.gettempdir()
@@ -530,7 +601,7 @@ def download_excel(filename):
     return send_file(file_path, as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=8008, debug=True)
 
 
 
