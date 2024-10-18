@@ -21,6 +21,14 @@
     {% else %}
         <p class="text-center">No consistency data available.</p>
     {% endif %}
+
+    <!-- Average Per Parent Group Table -->
+    {% if avg_per_parent_table %}
+        <h2 class="text-center">Average Consistency per Group during selected period</h2>
+        <div class="table-responsive mb-4">
+            {{ avg_per_parent_table|safe }}
+        </div>
+    {% endif %}
     
 </div>
 {% endblock %}

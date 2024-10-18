@@ -590,6 +590,15 @@ def process_wdcon():
         constance = week[week['PARENT_COMPANY'].isin(['Constance'])]
         hyatt = week[week['PARENT_COMPANY'].isin(['Hyatt'])]
         marriott = week[~week['PARENT_COMPANY'].isin(['Constance', 'Hyatt'])]
+
+        # Calculate average per group
+        avg_constance = constance['CONSISTENCY'].mean()
+        avg_hyatt = hyatt['CONSISTENCY'].mean()
+        avg_marriott = marriott['CONSISTENCY'].mean()
+        avg_per_parent = pd.DataFrame({
+            'PARENT_COMPANY': ['Constance', 'Hyatt', 'Marriott & Others'],
+            'CONSISTENCY': [avg_constance, avg_hyatt, avg_marriott]
+        })
         
         # Store the Excel file for download
         temp_dir = tempfile.gettempdir()
@@ -600,29 +609,35 @@ def process_wdcon():
             constance.to_excel(writer, sheet_name='Constance', index=False)
             hyatt.to_excel(writer, sheet_name='Hyatt', index=False)
             marriott.to_excel(writer, sheet_name='Marriott & Others', index=False)
+            avg_per_parent.to_excel(writer, sheet_name='Average per Group', index=False)
         
         # Generate download link
         download_link = f"/download_excel/{os.path.basename(file_path)}"
+        
+        # Convert avg_per_parent DataFrame to HTML table
+        avg_per_parent_table = avg_per_parent.to_html(classes='table table-striped table-bordered table-hover', index=False)
         
         # Render the appropriate table based on parent company selection
         if parent == 'constance':
             return render_template(
                 'weekly_dcon.html',
                 week_table=constance.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                avg_per_parent_table=avg_per_parent_table,
                 download_link=download_link, parent_company=parent.capitalize()
             )
         elif parent == 'hyatt':
             return render_template(
                 'weekly_dcon.html',
                 week_table=hyatt.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                avg_per_parent_table=avg_per_parent_table,
                 download_link=download_link, parent_company=parent.capitalize()
             )
         else:
             return render_template(
                 'weekly_dcon.html',
                 week_table=marriott.to_html(classes='table table-striped table-bordered table-hover', index=False),
-                download_link=download_link, parent_company='Marriott & Others'
-            )
+                avg_per_parent_table=avg_per_parent_table,
+                download_link=download_link, parent_company='Marriott & Others')
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
