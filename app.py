@@ -589,7 +589,7 @@ def process_wdcon():
         # Filter by company
         constance = week[week['PARENT_COMPANY'].isin(['Constance'])]
         hyatt = week[week['PARENT_COMPANY'].isin(['Hyatt'])]
-        others = week[~week['PARENT_COMPANY'].isin(['Constance', 'Hyatt'])]
+        marriott = week[~week['PARENT_COMPANY'].isin(['Constance', 'Hyatt'])]
         
         # Store the Excel file for download
         temp_dir = tempfile.gettempdir()
@@ -599,7 +599,7 @@ def process_wdcon():
         with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
             constance.to_excel(writer, sheet_name='Constance', index=False)
             hyatt.to_excel(writer, sheet_name='Hyatt', index=False)
-            others.to_excel(writer, sheet_name='Marriott & Others', index=False)
+            marriott.to_excel(writer, sheet_name='Marriott & Others', index=False)
         
         # Generate download link
         download_link = f"/download_excel/{os.path.basename(file_path)}"
@@ -620,8 +620,8 @@ def process_wdcon():
         else:
             return render_template(
                 'weekly_dcon.html',
-                week_table=others.to_html(classes='table table-striped table-bordered table-hover', index=False),
-                download_link=download_link, parent_company=parent.capitalize()
+                week_table=marriott.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                download_link=download_link, parent_company='Marriott & Others'
             )
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
