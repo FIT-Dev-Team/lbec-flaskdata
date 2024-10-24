@@ -111,17 +111,18 @@ excluded_kitchens_set = set(trial_kitchens + demo_kitchens)
 
 # Create a connection to the MySQL database
 def create_connection():
-    connection = None
-    try:
-        # Construct the connection string
-        connection_string = f"mysql+mysqlconnector://{
-            USERNAME}:{PASSWORD}@{HOST}/{DATABASE_NAME}"
-        connection = create_engine(connection_string)
-        print("Connection to MySQL DB successful")
-    except Exception as e:
-        print(f"The error '{e}' occurred")
-
-    return connection
+    user = os.getenv('user')
+    password = os.getenv('password')
+    host = os.getenv('host')
+    database = os.getenv('database')
+    
+    # Encode the password to handle special characters
+    encoded_password = urllib.parse.quote_plus(password)
+    
+    # Create the connection string with the encoded password
+    connection_str = f"mysql+mysqlconnector://{user}:{encoded_password}@{host}/{database}"
+    engine = sqlalchemy.create_engine(connection_str)
+    return engine
 
 # Kitchen names (New function, if dummies is False, then it will get the old restaurants as well and aggregate the full date range, 2024-07-10)
 def get_kitchen(company_name=None, Dummies=True, Expired=False, Emails=False):

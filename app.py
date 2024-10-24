@@ -34,7 +34,7 @@ def create_connection():
     user = os.getenv('user')
     password = os.getenv('password')
     host = os.getenv('host')
-    database = urllib.parse.quote_plus(os.getenv('database'))
+    database = os.getenv('database')
     
     # Encode the password to handle special characters
     encoded_password = urllib.parse.quote_plus(password)
