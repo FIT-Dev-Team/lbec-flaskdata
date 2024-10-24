@@ -154,8 +154,8 @@ def form_dcon():
 def process_dcon():
     logger.info("Processing the dcon")
     company_name = request.form['company_name']
+    start_date = request.form['start_date']
     end_date = request.form['end_date']
-    start_date = '2021-03-12'
     try:
         if end_date <= '2024-06-30':
             # Fetch data
