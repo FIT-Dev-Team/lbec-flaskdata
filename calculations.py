@@ -12,17 +12,18 @@ import sys
 import codecs
 import logging
 import io
+from app import create_connection
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 load_dotenv()
 
-# Database connection parameters
-USERNAME = os.getenv('user')
-HOST = os.getenv('host')
-DATABASE_NAME = os.getenv('database')
-PASSWORD = urllib.parse.quote_plus(os.getenv('password'))
+# # Database connection parameters
+# USERNAME = os.getenv('user')
+# HOST = os.getenv('host')
+# DATABASE_NAME = os.getenv('database')
+# PASSWORD = urllib.parse.quote_plus(os.getenv('password'))
 
 
 def escape_sql_string(value):
@@ -110,19 +111,19 @@ demo_kitchens = [
 excluded_kitchens_set = set(trial_kitchens + demo_kitchens)
 
 
-# Create a connection to the MySQL database
-def create_connection():
-    connection = None
-    try:
-        # Construct the connection string
-        connection_string = f"mysql+mysqlconnector://{
-            USERNAME}:{PASSWORD}@{HOST}/{DATABASE_NAME}"
-        connection = create_engine(connection_string)
-        print("Connection to MySQL DB successful")
-    except Exception as e:
-        print(f"The error '{e}' occurred")
+# # Create a connection to the MySQL database
+# def create_connection():
+#     connection = None
+#     try:
+#         # Construct the connection string
+#         connection_string = f"mysql+mysqlconnector://{
+#             USERNAME}:{PASSWORD}@{HOST}/{DATABASE_NAME}"
+#         connection = create_engine(connection_string)
+#         print("Connection to MySQL DB successful")
+#     except Exception as e:
+#         print(f"The error '{e}' occurred")
 
-    return connection
+#     return connection
 
 # Kitchen names (New function, if dummies is False, then it will get the old restaurants as well and aggregate the full date range, 2024-07-10)
 
