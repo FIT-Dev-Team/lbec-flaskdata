@@ -12,12 +12,26 @@ import sys
 import codecs
 import logging
 import io
-from app import create_connection
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 load_dotenv()
+
+def create_connection():
+    user = os.getenv('user')
+    password = os.getenv('password')
+    host = os.getenv('host')
+    database = urllib.parse.quote_plus(os.getenv('database'))
+    
+    # Encode the password to handle special characters
+    encoded_password = urllib.parse.quote_plus(password)
+    
+    # Create the connection string with the encoded password
+    connection_str = f"mysql+mysqlconnector://{user}:{encoded_password}@{host}/{database}"
+    engine = sqlalchemy.create_engine(connection_str)
+    return engine
+
 
 # # Database connection parameters
 # USERNAME = os.getenv('user')
