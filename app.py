@@ -187,8 +187,8 @@ def form_dcon():
 def process_dcon():
     logger.info("Processing the dcon")
     company_name = request.form['company_name']
+    start_date = request.form['start_date']
     end_date = request.form['end_date']
-    start_date = '2021-03-12'
     try:
         if end_date <= '2024-06-30':
             # Fetch data
@@ -340,7 +340,7 @@ def process_dcon():
             month['OPERATION_DATE'] = pd.to_datetime(month[['YEAR', 'MONTH']].assign(DAY=1))
 
             # Step 2: Format the OPERATION_DATE to YYYY-MMM
-            month['OPERATION_DATE'] = month['OPERATION_DATE'].dt.strftime('%Y-%b')
+            month['OPERATION_DATE'] = month['OPERATION_DATE'].dt.strftime('%Y-%m')
 
             # Drop the original YEAR and MONTH columns if needed
             month = month.drop(columns=['YEAR', 'MONTH'])

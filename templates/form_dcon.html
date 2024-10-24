@@ -42,11 +42,14 @@
     <form action="{{ url_for('process_dcon') }}" method="POST" class="custom-form">
         <label for="company_name">Company Name:</label>
         <input type="text" name="company_name" id="company_name" required>
-
+        
+        <label for="end_date">Start Date:</label>
+        <input type="date" name="start_date" id="start_date" required>
+        
         <label for="end_date">End Date:</label>
         <input type="date" name="end_date" id="end_date" required>
 
-        <p style="color:orangered; text-align:center;"><strong>Consistency is counted after the 1st Baseline onwards.</strong></p>
+        <p style="color:orangered; text-align:center;"><strong>New Complete Set Definition takes effect after 30 June 2024.</strong></p>
 
         <button type="submit" class="btn btn-primary">Submit</button>
     </form>
