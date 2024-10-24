@@ -1,4 +1,3 @@
-# Updated as of 2024-10-09
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -18,26 +17,11 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 load_dotenv()
 
-def create_connection():
-    user = os.getenv('user')
-    password = os.getenv('password')
-    host = os.getenv('host')
-    database = urllib.parse.quote_plus(os.getenv('database'))
-    
-    # Encode the password to handle special characters
-    encoded_password = urllib.parse.quote_plus(password)
-    
-    # Create the connection string with the encoded password
-    connection_str = f"mysql+mysqlconnector://{user}:{encoded_password}@{host}/{database}"
-    engine = sqlalchemy.create_engine(connection_str)
-    return engine
-
-
-# # Database connection parameters
-# USERNAME = os.getenv('user')
-# HOST = os.getenv('host')
-# DATABASE_NAME = os.getenv('database')
-# PASSWORD = urllib.parse.quote_plus(os.getenv('password'))
+# Database connection parameters
+USERNAME = os.getenv('user')
+HOST = os.getenv('host')
+DATABASE_NAME = os.getenv('database')
+PASSWORD = urllib.parse.quote_plus(os.getenv('password'))
 
 
 def escape_sql_string(value):
@@ -125,23 +109,21 @@ demo_kitchens = [
 excluded_kitchens_set = set(trial_kitchens + demo_kitchens)
 
 
-# # Create a connection to the MySQL database
-# def create_connection():
-#     connection = None
-#     try:
-#         # Construct the connection string
-#         connection_string = f"mysql+mysqlconnector://{
-#             USERNAME}:{PASSWORD}@{HOST}/{DATABASE_NAME}"
-#         connection = create_engine(connection_string)
-#         print("Connection to MySQL DB successful")
-#     except Exception as e:
-#         print(f"The error '{e}' occurred")
+# Create a connection to the MySQL database
+def create_connection():
+    connection = None
+    try:
+        # Construct the connection string
+        connection_string = f"mysql+mysqlconnector://{
+            USERNAME}:{PASSWORD}@{HOST}/{DATABASE_NAME}"
+        connection = create_engine(connection_string)
+        print("Connection to MySQL DB successful")
+    except Exception as e:
+        print(f"The error '{e}' occurred")
 
-#     return connection
+    return connection
 
 # Kitchen names (New function, if dummies is False, then it will get the old restaurants as well and aggregate the full date range, 2024-07-10)
-
-
 def get_kitchen(company_name=None, Dummies=True, Expired=False, Emails=False):
     # Establish connection to the database
     engine = create_connection()
@@ -157,11 +139,30 @@ def get_kitchen(company_name=None, Dummies=True, Expired=False, Emails=False):
     if company_name:
         query_conditions += f" AND cp.COMPANY_NAME = '{company_name}'"
 
-    # License aggregation query
-    license_aggregation_query = f"""
+    # Handle Dummies (trial and demo kitchens)
+    if Dummies:
+        conditions = []
+        for restaurant, company in trial_kitchens + demo_kitchens:
+            if company:
+                conditions.append(f"(ks.KICHEN_NAME = '{restaurant}' AND cp.COMPANY_NAME = '{company}')")
+            else:
+                conditions.append(f"ks.KICHEN_NAME = '{restaurant}'")
+        if conditions:
+            conditions_str = " AND NOT (" + " OR ".join(conditions) + ")"
+            query_conditions += conditions_str
+
+    # Handle expired licenses if Expired is False
+    if not Expired:
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        query_conditions += f" AND ca.LICENSE_EXPIRE_DATE > '{current_date}'"
+
+    # Query to retrieve kitchen, company, emails (with fallback to COMPANY_REGISTER)
+    query = f"""
         SELECT
-            ks.KICHEN_NAME,
-            cp.COMPANY_NAME,
+            ks.KICHEN_NAME as kitchen_name,
+            cp.COMPANY_NAME as company_name,
+            COALESCE(cp.WEEKLY_REPORT_MAIL_TO, cr.WEEKLY_REPORT_EMAIL) as Mail_To,
+            cp.WEEKLY_REPORT_MAIL_CC as Mail_Cc,
             MIN(ca.LICENSE_START_DATE) as LICENSE_START_DATE,
             MAX(ca.LICENSE_EXPIRE_DATE) as LICENSE_EXPIRE_DATE
         FROM
@@ -169,92 +170,30 @@ def get_kitchen(company_name=None, Dummies=True, Expired=False, Emails=False):
         JOIN
             COMPANY_PROFILE cp ON ks.CPN_PF_ID = cp.CPN_PF_ID
         LEFT JOIN
-            COMPANY_ACTIVATE ca ON ks.CPN_PF_ID = ca.CPN_PF_ID
-        WHERE
-            {query_conditions}
-        GROUP BY
-            ks.KICHEN_NAME, cp.COMPANY_NAME
-    """
-
-    licenses_df = pd.read_sql_query(license_aggregation_query, engine)
-
-    # Handle Dummies and Expired conditions
-    if Dummies or Expired:
-        conditions = []
-        if Dummies:
-            for restaurant, company in trial_kitchens + demo_kitchens:
-                if company:
-                    conditions.append(
-                        f"(ks.KICHEN_NAME = '{restaurant}' AND cp.COMPANY_NAME = '{company}')")
-                else:
-                    conditions.append(f"ks.KICHEN_NAME = '{restaurant}'")
-
-            if Expired:
-                conditions = [
-                    cond for cond in conditions if "trial" in cond or "demo" in cond]
-
-        if conditions:
-            conditions_str = " AND NOT (" + " OR ".join(conditions) + ")"
-            query_conditions += conditions_str
-
-        # Filter out expired licenses if Dummies is True and Expired is False
-        if Dummies and not Expired:
-            current_date = datetime.now()
-            licenses_df = licenses_df[licenses_df['LICENSE_EXPIRE_DATE'] > current_date]
-
-    email_query = ""
-    # Add email-related fields to the query if Emails is True
-    if Emails:
-        email_query = """,
-        cp.WEEKLY_REPORT_MAIL_TO as Mail_To,
-        cp.WEEKLY_REPORT_MAIL_CC as Mail_Cc"""
-    
-    # Final query with filtered conditions
-    query = f"""
-        SELECT
-            ks.KICHEN_NAME as kitchen_name,
-            cp.COMPANY_NAME as company_name,
-            MIN(ca.LICENSE_START_DATE) as LICENSE_START_DATE,
-            MAX(ca.LICENSE_EXPIRE_DATE) as LICENSE_EXPIRE_DATE{email_query}
-        FROM
-            KITCHEN_STATION ks
-        JOIN
-            COMPANY_PROFILE cp ON ks.CPN_PF_ID = cp.CPN_PF_ID
+            COMPANY_REGISTER cr ON cp.CPN_PF_ID = cr.CPN_PF_ID
         LEFT JOIN
             COMPANY_ACTIVATE ca ON ks.CPN_PF_ID = ca.CPN_PF_ID
         WHERE
             {query_conditions}
         GROUP BY
-            ks.KICHEN_NAME, cp.COMPANY_NAME
+            ks.KICHEN_NAME, cp.COMPANY_NAME, cp.WEEKLY_REPORT_MAIL_TO, cp.WEEKLY_REPORT_MAIL_CC, cr.WEEKLY_REPORT_EMAIL
     """
+
+    # Print query for debugging purposes
+    print("Final SQL Query:\n", query)
 
     # Execute the query and load the data into a DataFrame
     df = pd.read_sql(query, engine)
-    df = df.sort_values(by='kitchen_name')
 
-    # Remove duplicates conditionally based on the Emails flag
+    # Sort and remove duplicates conditionally based on Emails flag
     if Emails:
-        df = df.drop_duplicates(subset=['kitchen_name', 'company_name',
-                                        'LICENSE_START_DATE', 'LICENSE_EXPIRE_DATE', "Mail_To", "Mail_Cc"])
+        df = df.drop_duplicates(subset=['kitchen_name', 'company_name', 'LICENSE_START_DATE', 'LICENSE_EXPIRE_DATE', "Mail_To", "Mail_Cc"])
     else:
-        df = df.drop_duplicates(subset=['kitchen_name', 'company_name',
-                                        'LICENSE_START_DATE', 'LICENSE_EXPIRE_DATE'])
+        df = df.drop_duplicates(subset=['kitchen_name', 'company_name', 'LICENSE_START_DATE', 'LICENSE_EXPIRE_DATE'])
 
-    # Rename licenses_df columns from COMPANY_NAME to company_name and KICHEN_NAME to kitchen_name
-    licenses_df.rename(columns={'COMPANY_NAME': 'company_name', 'KICHEN_NAME': 'kitchen_name'}, inplace=True)
-
-    # Join the main query result with the licenses_df to filter out expired licenses
-    df = df.merge(licenses_df, on=['kitchen_name', 'company_name'], suffixes=('', '_y'), how='inner')
-
-    # Keep only the necessary columns and drop duplicates
-    df = df[['kitchen_name', 'company_name', 'LICENSE_START_DATE', 'LICENSE_EXPIRE_DATE']]
-    
-    if Emails:
-        # Only add Mail_To and Mail_Cc columns if they exist in the DataFrame
-        if 'Mail_To' in df.columns and 'Mail_Cc' in df.columns:
-            df = df[['kitchen_name', 'company_name', 'LICENSE_START_DATE', 'LICENSE_EXPIRE_DATE', 'Mail_To', 'Mail_Cc']]
-
-    df = group_by_parent_company(df, column_name='company_name')
+    # Print the DataFrame to ensure proper handling of dummies, expired, and emails
+    print("Retrieved Kitchen Data with Dummies and Expired Handling:")
+    print(df)
 
     # Close the database connection
     engine.dispose()
@@ -866,33 +805,36 @@ def g_cover(start_date='2000-01-01', end_date=datetime.now(), company_name=None,
 
     return fwcv_comp
 
-def DCON(engine, start_date='2000-01-01', end_date=None, company_name=None, restaurant_name=None, TakingBaseline=True, grouping='overall', PerHotel=False, CONS=True, Dummies=True, Expired=False):
-    engine = create_connection()
+def DCON(start_date='2000-01-01', end_date=None, company_name=None, restaurant_name=None,
+         TakingBaseline=True, grouping='overall', PerHotel=False, CONS=True, Dummies=True, Expired=False):
+    engine = create_connection()  # Ensure this function is defined
     if end_date is None:
         end_date = datetime.now().strftime('%Y-%m-%d')
     cutoff_date = pd.to_datetime('2024-07-01')
     start_date_dt = pd.to_datetime(start_date)
     end_date_dt = pd.to_datetime(end_date)
     conditions = ''
+
     # Construct the query conditions
     if company_name:
         if isinstance(company_name, list):
-            conditions += "AND (" + " OR ".join([f"""(cp.COMPANY_NAME = "{comp}")""" for comp in company_name]) + ")"
-        else:    
+            company_conditions = " OR ".join([f"""(cp.COMPANY_NAME = "{comp}")""" for comp in company_name])
+            conditions += f"AND ({company_conditions})"
+        else:
             conditions += f""" AND cp.COMPANY_NAME LIKE "%{company_name}%" """
     if restaurant_name:
         conditions += f"""AND ks.KICHEN_NAME LIKE "%{restaurant_name}%" """
-    
+
     if Dummies:
-        excluded_kitchens_list = list(excluded_kitchens_set)
+        excluded_kitchens_list = list(excluded_kitchens_set)  # Ensure this variable is defined
         if excluded_kitchens_list:
-            exclusion_conditions = "AND NOT (" + " OR ".join(
+            exclusion_conditions = " AND NOT (" + " OR ".join(
                 [f"""(cp.COMPANY_NAME = "{company}" AND ks.KICHEN_NAME = "{kitchen}")"""
                  for kitchen, company in excluded_kitchens_list]) + ")"
-            conditions += ' ' + exclusion_conditions
+            conditions += exclusion_conditions
 
     # Aggregate licenses and filter based on the expiration date
-    license_aggregation_query = """
+    license_aggregation_query = f"""
         SELECT
             ks.KICHEN_NAME,
             cp.COMPANY_NAME,
@@ -912,612 +854,368 @@ def DCON(engine, start_date='2000-01-01', end_date=None, company_name=None, rest
         GROUP BY
             ks.KICHEN_NAME, cp.COMPANY_NAME
     """
-    
     licenses_df = pd.read_sql_query(license_aggregation_query, engine)
 
     # Define the consistency check
     if CONS:
-        join_cover = ""
         consistency_str = "kfw.COMPLETE='Y' AND "
+        join_cover = ""
     else:
-        consistency_str = """kc.ACTIVE='Y' AND kfw.ACTIVE = 'Y' AND 
+        consistency_str = """
+            kc.ACTIVE='Y' AND kfw.ACTIVE = 'Y' AND
             (NOT(kc.AMOUNT IS NULL) OR ks.PRODUCTION_KITCHEN_FLAG='Y') AND
             cp.COMPANY_STATUS  = 'ACTIVE' AND
             cp.ACTIVE='Y' AND
             ks.KICHEN_STATUS = 'Y' AND
             ks.ACTIVE = 'Y' AND
-            (kc.ACTIVE='Y' or kc.ACTIVE IS NULL) AND
-            (cs.ACTIVE IS NULL or cs.ACTIVE='N') AND ((kfw.SHIFT_ID='BREAKFAST' AND kos.BREAKFAST='Y') OR 
-             (kfw.SHIFT_ID='LUNCH' AND kos.LUNCH='Y') OR 
-             (kfw.SHIFT_ID='DINNER' AND kos.DINNER='Y') OR 
-             (kfw.SHIFT_ID='BRUNCH' AND kos.BRUNCH='Y') OR 
-             (kfw.SHIFT_ID='AFTERNOON_TEA' AND kos.AFTERNOON_TEA='Y')) AND """
-        
-        join_cover = """LEFT JOIN KITCHEN_COVER kc ON kc.OPERATION_DATE=kfw.OPERATION_DATE AND kc.SHIFT_ID=kfw.SHIFT_ID AND kc.KC_STT_ID=ks.KC_STT_ID
-        LEFT JOIN 
-        KITCHEN_SHIFT_CLOSE cs ON cs.KC_STT_ID = ks.KC_STT_ID AND cs.SHIFT_ID = kfw.SHIFT_ID AND cs.CLOSE_DATE = kfw.OPERATION_DATE 
-        JOIN 
-            lightblue.KITCHEN_OPERATION_SHIFT kos ON kos.KC_STT_ID = ks.KC_STT_ID AND kos.DAY_OF_WEEK=UPPER(DAYNAME(kfw.OPERATION_DATE)) AND kos.OPERATION_SHIFT_TYPE='SHIFT_MAIN'
-         """
+            (kc.ACTIVE='Y' OR kc.ACTIVE IS NULL) AND
+            (cs.ACTIVE IS NULL OR cs.ACTIVE='N') AND
+            ((kfw.SHIFT_ID='BREAKFAST' AND kos.BREAKFAST='Y') OR
+             (kfw.SHIFT_ID='LUNCH' AND kos.LUNCH='Y') OR
+             (kfw.SHIFT_ID='DINNER' AND kos.DINNER='Y') OR
+             (kfw.SHIFT_ID='BRUNCH' AND kos.BRUNCH='Y') OR
+             (kfw.SHIFT_ID='AFTERNOON_TEA' AND kos.AFTERNOON_TEA='Y')) AND
+        """
+        join_cover = """
+            LEFT JOIN KITCHEN_COVER kc ON kc.OPERATION_DATE=kfw.OPERATION_DATE AND kc.SHIFT_ID=kfw.SHIFT_ID AND kc.KC_STT_ID=ks.KC_STT_ID
+            LEFT JOIN KITCHEN_SHIFT_CLOSE cs ON cs.KC_STT_ID = ks.KC_STT_ID AND cs.SHIFT_ID = kfw.SHIFT_ID AND cs.CLOSE_DATE = kfw.OPERATION_DATE
+            JOIN KITCHEN_OPERATION_SHIFT kos ON kos.KC_STT_ID = ks.KC_STT_ID AND kos.DAY_OF_WEEK=UPPER(DAYNAME(kfw.OPERATION_DATE)) AND kos.OPERATION_SHIFT_TYPE='SHIFT_MAIN'
+        """
 
     # Queries
     firstdate_query = f"""
-        SELECT  
+        SELECT
             cp.COMPANY_NAME,
             ks.KICHEN_NAME,
             MIN(kb.BASELINE_END_DATE) as FirstDate,
             COUNTRY_CODE
-        FROM 
+        FROM
             COMPANY_PROFILE cp
-        JOIN 
+        JOIN
             KITCHEN_STATION ks ON cp.CPN_PF_ID = ks.CPN_PF_ID
-        JOIN 
+        JOIN
             KITCHEN_BASELINE kb ON ks.KC_STT_ID = kb.KC_STT_ID
         LEFT JOIN
-            lightblue.COMPANY_ACTIVATE ca ON ks.CPN_PF_ID = ca.CPN_PF_ID
-        WHERE 
+            COMPANY_ACTIVATE ca ON ks.CPN_PF_ID = ca.CPN_PF_ID
+        WHERE
             kb.ACTIVE = 'Y' AND
             cp.COMPANY_STATUS = 'ACTIVE' AND
-            cp.ACTIVE = 'Y' 
+            cp.ACTIVE = 'Y'
             {conditions} AND
             ks.KICHEN_STATUS = 'Y' AND
             ks.ACTIVE = 'Y'
-        GROUP BY 
+        GROUP BY
             cp.COMPANY_NAME, ks.KICHEN_NAME
-        ORDER BY 
+        ORDER BY
             cp.COMPANY_NAME, ks.KICHEN_NAME;
     """
+    firstdate = pd.read_sql_query(firstdate_query, engine)
 
-    def DCON_old_method(engine, conditions, join_cover, consistency_str, firstdate_query, start_date, end_date, company_name=None, restaurant_name=None, TakingBaseline=True, grouping='overall', PerHotel=False, licenses_df=None):
-        # Queries specific to the old method
-        closed_shifts_query = f"""
+    # Load data common to both methods
+    opening_shift_query = f"""
+        SELECT
+            cp.COMPANY_NAME,
+            ks.KICHEN_NAME,
+            kos.DAY_OF_WEEK,
+            kos.BREAKFAST,
+            kos.BRUNCH,
+            kos.LUNCH,
+            kos.AFTERNOON_TEA,
+            kos.DINNER
+        FROM
+            KITCHEN_OPERATION_SHIFT kos
+        JOIN
+            COMPANY_PROFILE cp ON kos.CPN_PF_ID = cp.CPN_PF_ID
+        JOIN
+            KITCHEN_STATION ks ON kos.KC_STT_ID = ks.KC_STT_ID
+        WHERE
+            kos.ACTIVE = 'Y' AND
+            cp.COMPANY_STATUS = 'ACTIVE'
+            {conditions} AND
+            cp.ACTIVE = 'Y' AND
+            ks.KICHEN_STATUS = 'Y' AND
+            ks.ACTIVE ='Y' AND
+            kos.OPERATION_SHIFT_TYPE = 'SHIFT_MAIN'
+        ORDER BY
+            cp.COMPANY_NAME, ks.KICHEN_NAME;
+    """
+    opening_shifts = pd.read_sql_query(opening_shift_query, engine).drop_duplicates()
+    if opening_shifts.empty:
+        print("opening_shifts DataFrame is empty.")
+        return pd.DataFrame()
+
+    closed_shifts_query = f"""
+        SELECT
+            cp.COMPANY_NAME,
+            ks.KICHEN_NAME,
+            ksc.CLOSE_DATE as OPERATION_DATE,
+            ksc.SHIFT_ID
+        FROM
+            KITCHEN_SHIFT_CLOSE ksc
+        JOIN
+            COMPANY_PROFILE cp ON cp.CPN_PF_ID = ksc.CPN_PF_ID
+        JOIN
+            KITCHEN_STATION ks ON ks.KC_STT_ID = ksc.KC_STT_ID
+        WHERE
+            ksc.ACTIVE = 'Y' AND
+            cp.COMPANY_STATUS  = 'ACTIVE' AND
+            ks.KICHEN_STATUS = 'Y' AND
+            ks.ACTIVE = 'Y'
+            {conditions} AND
+            (ksc.CLOSE_DATE BETWEEN '{start_date}' AND '{end_date}')
+        ORDER BY
+            cp.COMPANY_NAME, ks.KICHEN_NAME, ksc.CLOSE_DATE;
+    """
+    closed_shifts = pd.read_sql_query(closed_shifts_query, engine).drop_duplicates()
+    closed_shifts['OPERATION_DATE'] = pd.to_datetime(closed_shifts['OPERATION_DATE'])
+
+    # Choose the appropriate data query based on cutoff_date
+    if end_date_dt < cutoff_date:
+        # Old method query
+        data_query = f"""
             SELECT
-                cp.COMPANY_NAME,
-                ks.KICHEN_NAME,
-                ksc.CLOSE_DATE as OPERATION_DATE,
-                ksc.SHIFT_ID
-            FROM 
-                KITCHEN_SHIFT_CLOSE ksc 
-            JOIN
-                COMPANY_PROFILE cp on cp.CPN_PF_ID = ksc.CPN_PF_ID 
-            JOIN 
-                KITCHEN_STATION ks on ks.KC_STT_ID = ksc.KC_STT_ID 
-            WHERE 
-                ksc.ACTIVE = 'Y' AND
-                cp.COMPANY_STATUS  = 'ACTIVE' AND
-                ks.KICHEN_STATUS = 'Y' AND
-                ks.ACTIVE = 'Y'
-                {conditions} AND
-                (ksc.CLOSE_DATE BETWEEN '{start_date}' AND '{end_date}')
-            ORDER BY 
-                cp.COMPANY_NAME, ks.KICHEN_NAME, ksc.CLOSE_DATE;
-        """
-
-        opening_shift_query = f"""
-            SELECT
-                cp.COMPANY_NAME,
-                ks.KICHEN_NAME,
-                kos.DAY_OF_WEEK,
-                kos.BREAKFAST,
-                kos.BRUNCH,
-                kos.LUNCH,
-                kos.AFTERNOON_TEA,
-                kos.DINNER
-            FROM
-                KITCHEN_OPERATION_SHIFT kos 
-            JOIN
-                COMPANY_PROFILE cp on kos.CPN_PF_ID = cp.CPN_PF_ID 
-            JOIN 
-                KITCHEN_STATION ks on kos.KC_STT_ID = ks.KC_STT_ID
-            WHERE 
-                kos.ACTIVE = 'Y' AND 
-                cp.COMPANY_STATUS = 'ACTIVE'
-                {conditions} AND
-                cp.ACTIVE = 'Y' AND
-                ks.KICHEN_STATUS = 'Y' AND
-                ks.ACTIVE ='Y' AND
-                kos.OPERATION_SHIFT_TYPE = 'SHIFT_MAIN'
-            ORDER BY 
-                cp.COMPANY_NAME, ks.KICHEN_NAME;
-        """
-
-        fwcv_query = f"""
-            SELECT 
                 kfw.OPERATION_DATE,
                 cp.COMPANY_NAME,
                 ks.KICHEN_NAME,
                 kfw.SHIFT_ID,
                 SUM(kfw.AMOUNT) as FW,
-                SUM(kc.AMOUNT) as CV
-            FROM 
-                lightblue.KITCHEN_FOOD_WASTE kfw 
-            JOIN 
-                lightblue.KITCHEN_STATION ks ON kfw.KC_STT_ID = ks.KC_STT_ID 
-            LEFT JOIN
-                lightblue.KITCHEN_COVER kc ON kc.KC_STT_ID = ks.KC_STT_ID AND kc.SHIFT_ID = kfw.SHIFT_ID AND kc.OPERATION_DATE = kfw.OPERATION_DATE
+                SUM(kc_main.AMOUNT) as CV
+            FROM
+                KITCHEN_FOOD_WASTE kfw
             JOIN
-                lightblue.COMPANY_PROFILE cp ON ks.CPN_PF_ID = cp.CPN_PF_ID
+                KITCHEN_STATION ks ON kfw.KC_STT_ID = ks.KC_STT_ID
+            LEFT JOIN
+                KITCHEN_COVER kc_main ON kc_main.KC_STT_ID = ks.KC_STT_ID AND kc_main.SHIFT_ID = kfw.SHIFT_ID AND kc_main.OPERATION_DATE = kfw.OPERATION_DATE
+            JOIN
+                COMPANY_PROFILE cp ON ks.CPN_PF_ID = cp.CPN_PF_ID
             {join_cover}
-            WHERE 
-                kfw.ACTIVE = 'Y' 
+            WHERE
+                kfw.ACTIVE = 'Y'
                 {conditions} AND
                 {consistency_str}
                 kfw.OPERATION_DATE BETWEEN '{start_date}' AND '{end_date}'
-            GROUP BY 
-                cp.COMPANY_NAME, ks.KICHEN_NAME, kfw.OPERATION_DATE, kfw.SHIFT_ID
+            GROUP BY
+                cp.COMPANY_NAME, ks.KICHEN_NAME, kfw.OPERATION_DATE, kfw.SHIFT_ID;
         """
-
-        # Load data
-        fwcv = pd.read_sql_query(fwcv_query, engine)
-        if fwcv.empty:
-            print("fwcv DataFrame is empty.")
-            return pd.DataFrame()
-        firstdate = pd.read_sql_query(firstdate_query, engine)
-        if firstdate.empty:
-            print("firstdate DataFrame is empty.")
-            return pd.DataFrame()
-        opening_shifts = pd.read_sql_query(opening_shift_query, engine).drop_duplicates()
-        if opening_shifts.empty:
-            print("opening_shifts DataFrame is empty.")
-            return pd.DataFrame()
-        closed_shifts = pd.read_sql_query(closed_shifts_query, engine).drop_duplicates()
-        closed_shifts['OPERATION_DATE'] = pd.to_datetime(closed_shifts['OPERATION_DATE'])
-
-        # Convert dates to datetime
-        fwcv['OPERATION_DATE'] = pd.to_datetime(fwcv['OPERATION_DATE'])
-
-        # Merge baseline data if necessary
-        fwcv = fwcv.merge(firstdate, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
-        fwcv = fwcv[fwcv['OPERATION_DATE'] > fwcv['FirstDate']]
-        fwcv = fwcv.drop(['FirstDate', 'COUNTRY_CODE'], axis=1)
-        closed_shifts = closed_shifts.merge(firstdate, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
-        closed_shifts = closed_shifts[closed_shifts['OPERATION_DATE'] > closed_shifts['FirstDate']]
-        closed_shifts = closed_shifts.drop(['FirstDate', 'COUNTRY_CODE'], axis=1)
-
-        # Add grouping columns based on the grouping logic
-        if grouping in ['monthly', 'yearly', 'weekly']:
-            fwcv['YEAR'] = fwcv['OPERATION_DATE'].dt.year
-            closed_shifts['YEAR'] = closed_shifts['OPERATION_DATE'].dt.year
-            if grouping == 'monthly':
-                fwcv['MONTH'] = fwcv['OPERATION_DATE'].dt.month
-                closed_shifts['MONTH'] = closed_shifts['OPERATION_DATE'].dt.month
-            elif grouping == 'weekly':
-                fwcv['WEEK_START_DATE'] = fwcv['OPERATION_DATE'] - pd.to_timedelta(fwcv['OPERATION_DATE'].dt.weekday, unit='D')
-                closed_shifts['WEEK_START_DATE'] = closed_shifts['OPERATION_DATE'] - pd.to_timedelta(closed_shifts['OPERATION_DATE'].dt.weekday, unit='D')
-
-        # Vectorized full schedule generation
-        all_dates = pd.date_range(start=start_date, end=end_date)
-        days_of_week = all_dates.day_name().str.upper()
-        dates_df = pd.DataFrame({'OPERATION_DATE': all_dates, 'DAY_OF_WEEK': days_of_week})
-        opening_shifts['DAY_OF_WEEK'] = opening_shifts['DAY_OF_WEEK'].str.upper()
-
-        # Merge to get possible shifts
-        schedule = dates_df.merge(opening_shifts, on='DAY_OF_WEEK', how='left')
-        schedule_melted = schedule.melt(
-            id_vars=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'DAY_OF_WEEK'],
-            value_vars=['BREAKFAST', 'BRUNCH', 'LUNCH', 'AFTERNOON_TEA', 'DINNER'],
-            var_name='SHIFT_ID',
-            value_name='SHIFT_OPEN'
-        )
-        full_schedule_df = schedule_melted[schedule_melted['SHIFT_OPEN'] == 'Y'].drop('SHIFT_OPEN', axis=1)
-        full_schedule_df = full_schedule_df.drop_duplicates(subset=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'SHIFT_ID'])
-
-        # Add YEAR, MONTH, WEEK_START_DATE columns to full_schedule_df if required
-        if grouping in ['monthly', 'yearly', 'weekly']:
-            full_schedule_df['YEAR'] = full_schedule_df['OPERATION_DATE'].dt.year
-            if grouping == 'monthly':
-                full_schedule_df['MONTH'] = full_schedule_df['OPERATION_DATE'].dt.month
-            elif grouping == 'weekly':
-                full_schedule_df['WEEK_START_DATE'] = full_schedule_df['OPERATION_DATE'] - pd.to_timedelta(full_schedule_df['OPERATION_DATE'].dt.weekday, unit='D')
-
-        # Prepare closed_shifts DataFrame
-        closed_shifts['DAY_OF_WEEK'] = closed_shifts['OPERATION_DATE'].dt.day_name().str.upper()
-
-        # Melt opening_shifts to get SHIFT_STATUS
-        opening_shifts_melted = opening_shifts.melt(
-            id_vars=['COMPANY_NAME', 'KICHEN_NAME', 'DAY_OF_WEEK'],
-            value_vars=['BREAKFAST', 'BRUNCH', 'LUNCH', 'AFTERNOON_TEA', 'DINNER'],
-            var_name='SHIFT_ID',
-            value_name='SHIFT_STATUS'
-        )
-
-        # Merge closed_shifts with opening_shifts_melted to get SHIFT_STATUS
-        merged_closed_shifts = closed_shifts.merge(
-            opening_shifts_melted,
-            on=['COMPANY_NAME', 'KICHEN_NAME', 'DAY_OF_WEEK', 'SHIFT_ID'],
-            how='left'
-        )
-
-        # Determine IS_REDUNDANT based on SHIFT_STATUS
-        merged_closed_shifts['IS_REDUNDANT'] = merged_closed_shifts['SHIFT_STATUS'].apply(
-            lambda x: 'Y' if x == 'N' or pd.isna(x) else 'N'
-        )
-
-        # Filter out redundant shifts
-        closed_shifts = merged_closed_shifts[merged_closed_shifts['IS_REDUNDANT'] == 'N']
-
-        # Calculations
-        fwcv['COMP_SHIFTS'] = 1
-        closed_shifts['CLOSED_SHIFTS'] = 1
-        full_schedule_df['TOTAL_SHIFTS'] = 1
-
-        # Adjust grouping columns based on grouping
-        if grouping == 'monthly':
-            group_columns = ['COMPANY_NAME', 'KICHEN_NAME', 'YEAR', 'MONTH']
-        elif grouping == 'yearly':
-            group_columns = ['COMPANY_NAME', 'KICHEN_NAME', 'YEAR']
-        elif grouping == 'weekly':
-            group_columns = ['COMPANY_NAME', 'KICHEN_NAME', 'WEEK_START_DATE']
-        elif grouping == 'daily':
-            group_columns = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE']
-        elif grouping == 'overall':
-            group_columns = ['COMPANY_NAME', 'KICHEN_NAME']
-        else:
-            raise ValueError(f"Invalid grouping value: {grouping}. Choose from 'daily', 'weekly', 'monthly', 'yearly', 'overall'.")
-
-        # Ensure all grouping columns are present
-        for col in group_columns:
-            for df in [fwcv, full_schedule_df, closed_shifts]:
-                if col not in df.columns:
-                    df[col] = np.nan  # Or fill with appropriate values
-
-        # Group data
-        total_shifts = full_schedule_df.groupby(group_columns).agg({'TOTAL_SHIFTS': 'count'}).reset_index()
-        comp_shifts = fwcv.groupby(group_columns).agg({'COMP_SHIFTS': 'count'}).reset_index()
-        closed_shifts_count = closed_shifts.groupby(group_columns).agg({'CLOSED_SHIFTS': 'count'}).reset_index()
-
-        # Merge data
-        dcon_data = total_shifts.merge(comp_shifts, on=group_columns, how='left')
-        dcon_data = dcon_data.merge(closed_shifts_count, on=group_columns, how='left')
-
-        dcon_data['COMP_SHIFTS'] = dcon_data['COMP_SHIFTS'].fillna(0)
-        dcon_data['CLOSED_SHIFTS'] = dcon_data['CLOSED_SHIFTS'].fillna(0)
-        dcon_data['CONSISTENCY'] = (dcon_data['COMP_SHIFTS'] / (dcon_data['TOTAL_SHIFTS'] - dcon_data['CLOSED_SHIFTS'])).round(2)
-        dcon_data['CONSISTENCY'] = dcon_data['CONSISTENCY'].replace([np.inf, -np.inf], 0).fillna(0)
-
-        # Add START_DATE and END_DATE
-        bounds = full_schedule_df.groupby(['COMPANY_NAME', 'KICHEN_NAME']).agg(
-            START_DATE=('OPERATION_DATE', 'min'),
-            END_DATE=('OPERATION_DATE', 'max')
-        ).reset_index()
-        dcon_data = dcon_data.merge(bounds, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
-
-        # Prepare final data based on grouping
-        if grouping == 'monthly':
-            dcon_data['OPERATION_DATE'] = pd.to_datetime(dcon_data[['YEAR', 'MONTH']].assign(DAY=1))
-            dcon_data = dcon_data.drop(columns=['YEAR', 'MONTH'])
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        elif grouping == 'weekly':
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'WEEK_START_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        elif grouping == 'yearly':
-            dcon_data['OPERATION_DATE'] = pd.to_datetime(dcon_data['YEAR'], format='%Y')
-            dcon_data = dcon_data.drop(columns=['YEAR'])
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        elif grouping == 'overall':
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS', 'START_DATE', 'END_DATE']
-        elif grouping == 'daily':
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        else:
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-
-        if PerHotel:
-            group_cols = ['COMPANY_NAME'] + (
-                ['WEEK_START_DATE'] if 'WEEK_START_DATE' in dcon_data.columns else
-                ['OPERATION_DATE'] if 'OPERATION_DATE' in dcon_data.columns else []
-            )
-            dcon_data = dcon_data.groupby(group_cols).sum().reset_index()
-            dcon_data['CONSISTENCY'] = (dcon_data['COMP_SHIFTS'] / (dcon_data['TOTAL_SHIFTS'] - dcon_data['CLOSED_SHIFTS'])).round(2)
-            columns_to_select = [col for col in columns_to_select if col != 'KICHEN_NAME']
-            dcon_data = dcon_data[columns_to_select]
-        else:
-            dcon_data = dcon_data[columns_to_select]
-            dcon_data = dcon_data.sort_values(by=columns_to_select[:2])
-
-        # Merge with licenses_df if provided
-        if licenses_df is not None:
-            dcon_data = dcon_data.merge(licenses_df, on=['COMPANY_NAME', 'KICHEN_NAME'], how='inner')
-
-        return dcon_data
-
-    def DCON_new_method(engine, conditions, join_cover, consistency_str, firstdate_query, start_date, end_date, company_name=None, restaurant_name=None, TakingBaseline=True, grouping='overall', PerHotel=False, licenses_df=None):
-        # Queries
-        closed_shifts_query = f"""
+    elif start_date_dt >= cutoff_date:
+        # New method query
+        data_query = f"""
             SELECT
-                cp.COMPANY_NAME,
-                ks.KICHEN_NAME,
-                ksc.CLOSE_DATE as OPERATION_DATE,
-                ksc.SHIFT_ID
-            FROM 
-                KITCHEN_SHIFT_CLOSE ksc 
-            JOIN
-                COMPANY_PROFILE cp on cp.CPN_PF_ID = ksc.CPN_PF_ID 
-            JOIN 
-                KITCHEN_STATION ks on ks.KC_STT_ID = ksc.KC_STT_ID 
-            WHERE 
-                ksc.ACTIVE = 'Y' AND
-                cp.COMPANY_STATUS  = 'ACTIVE' AND
-                ks.KICHEN_STATUS = 'Y' AND
-                ks.ACTIVE = 'Y'
-                {conditions} AND
-                (ksc.CLOSE_DATE BETWEEN '{start_date}' AND '{end_date}')
-            ORDER BY 
-                cp.COMPANY_NAME, ks.KICHEN_NAME, ksc.CLOSE_DATE;
-        """
-        opening_shift_query = f"""
-            SELECT
-                cp.COMPANY_NAME,
-                ks.KICHEN_NAME,
-                kos.DAY_OF_WEEK,
-                kos.BREAKFAST,
-                kos.BRUNCH,
-                kos.LUNCH,
-                kos.AFTERNOON_TEA,
-                kos.DINNER
-            FROM
-                KITCHEN_OPERATION_SHIFT kos 
-            JOIN
-                COMPANY_PROFILE cp on kos.CPN_PF_ID = cp.CPN_PF_ID 
-            JOIN 
-                KITCHEN_STATION ks on kos.KC_STT_ID = ks.KC_STT_ID
-            WHERE 
-                kos.ACTIVE = 'Y' AND 
-                cp.COMPANY_STATUS = 'ACTIVE'
-                {conditions} AND
-                cp.ACTIVE = 'Y' AND
-                ks.KICHEN_STATUS = 'Y' AND
-                ks.ACTIVE ='Y' AND
-                kos.OPERATION_SHIFT_TYPE = 'SHIFT_MAIN'
-            ORDER BY 
-                cp.COMPANY_NAME, ks.KICHEN_NAME;
-        """
-
-        fw_cv_query = f"""
-            SELECT 
                 DATE(kfw.OPERATION_DATE) as OPERATION_DATE,
                 cp.COMPANY_NAME,
                 ks.KICHEN_NAME,
                 kfw.SHIFT_ID
-            FROM 
-                lightblue.KITCHEN_FOOD_WASTE kfw 
-            JOIN 
-                lightblue.KITCHEN_STATION ks ON kfw.KC_STT_ID = ks.KC_STT_ID 
+            FROM
+                KITCHEN_FOOD_WASTE kfw
             JOIN
-                lightblue.COMPANY_PROFILE cp ON ks.CPN_PF_ID = cp.CPN_PF_ID
-            WHERE 
-                kfw.ACTIVE = 'Y' 
+                KITCHEN_STATION ks ON kfw.KC_STT_ID = ks.KC_STT_ID
+            JOIN
+                COMPANY_PROFILE cp ON ks.CPN_PF_ID = cp.CPN_PF_ID
+            WHERE
+                kfw.ACTIVE = 'Y'
                 {conditions} AND
                 kfw.COMPLETE='Y' AND
                 kfw.OPERATION_DATE BETWEEN '{start_date}' AND '{end_date}'
-            GROUP BY 
-                cp.COMPANY_NAME, ks.KICHEN_NAME, kfw.OPERATION_DATE, kfw.SHIFT_ID
+            GROUP BY
+                cp.COMPANY_NAME, ks.KICHEN_NAME, kfw.OPERATION_DATE, kfw.SHIFT_ID;
         """
-        # Load data
-        opening_shifts = pd.read_sql_query(opening_shift_query, engine).drop_duplicates()
-        fwcv_comp = pd.read_sql_query(fw_cv_query, engine).drop_duplicates()
-        closed_shifts = pd.read_sql_query(closed_shifts_query, engine).drop_duplicates()
-        firstdate = pd.read_sql_query(firstdate_query, engine)
-
-        # Convert dates to datetime
-        fwcv_comp['OPERATION_DATE'] = pd.to_datetime(fwcv_comp['OPERATION_DATE'])
-        closed_shifts['OPERATION_DATE'] = pd.to_datetime(closed_shifts['OPERATION_DATE'])
-
-        # Merge baseline data if necessary
-        fwcv_comp = fwcv_comp.merge(firstdate, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
-        fwcv_comp = fwcv_comp[fwcv_comp['OPERATION_DATE'] > fwcv_comp['FirstDate']]
-        fwcv_comp = fwcv_comp.drop(['FirstDate', 'COUNTRY_CODE'], axis=1)
-        closed_shifts = closed_shifts.merge(firstdate, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
-        closed_shifts = closed_shifts[closed_shifts['OPERATION_DATE'] > closed_shifts['FirstDate']]
-        closed_shifts = closed_shifts.drop(['FirstDate', 'COUNTRY_CODE'], axis=1)
-
-        # Add grouping columns based on the grouping logic
-        if grouping in ['monthly', 'yearly', 'weekly']:
-            fwcv_comp['YEAR'] = fwcv_comp['OPERATION_DATE'].dt.year
-            closed_shifts['YEAR'] = closed_shifts['OPERATION_DATE'].dt.year
-            if grouping == 'monthly':
-                fwcv_comp['MONTH'] = fwcv_comp['OPERATION_DATE'].dt.month
-                closed_shifts['MONTH'] = closed_shifts['OPERATION_DATE'].dt.month
-            elif grouping == 'weekly':
-                fwcv_comp['WEEK_START_DATE'] = fwcv_comp['OPERATION_DATE'] - pd.to_timedelta(fwcv_comp['OPERATION_DATE'].dt.weekday, unit='D')
-                closed_shifts['WEEK_START_DATE'] = closed_shifts['OPERATION_DATE'] - pd.to_timedelta(closed_shifts['OPERATION_DATE'].dt.weekday, unit='D')
-
-        # Vectorized full schedule generation
-        all_dates = pd.date_range(start=start_date, end=end_date)
-        days_of_week = all_dates.day_name().str.upper()
-        dates_df = pd.DataFrame({'OPERATION_DATE': all_dates, 'DAY_OF_WEEK': days_of_week})
-        opening_shifts['DAY_OF_WEEK'] = opening_shifts['DAY_OF_WEEK'].str.upper()
-
-        # Merge to get possible shifts
-        schedule = dates_df.merge(opening_shifts, on='DAY_OF_WEEK', how='left')
-        schedule_melted = schedule.melt(
-            id_vars=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'DAY_OF_WEEK'],
-            value_vars=['BREAKFAST', 'BRUNCH', 'LUNCH', 'AFTERNOON_TEA', 'DINNER'],
-            var_name='SHIFT_ID',
-            value_name='SHIFT_OPEN'
-        )
-        full_schedule_df = schedule_melted[schedule_melted['SHIFT_OPEN'] == 'Y'].drop('SHIFT_OPEN', axis=1)
-        full_schedule_df = full_schedule_df.drop_duplicates(subset=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'SHIFT_ID'])
-
-        # Add YEAR, MONTH, WEEK_START_DATE columns to full_schedule_df if required
-        if grouping in ['monthly', 'yearly', 'weekly']:
-            full_schedule_df['YEAR'] = full_schedule_df['OPERATION_DATE'].dt.year
-            if grouping == 'monthly':
-                full_schedule_df['MONTH'] = full_schedule_df['OPERATION_DATE'].dt.month
-            elif grouping == 'weekly':
-                full_schedule_df['WEEK_START_DATE'] = full_schedule_df['OPERATION_DATE'] - pd.to_timedelta(full_schedule_df['OPERATION_DATE'].dt.weekday, unit='D')
-
-        # Prepare closed_shifts DataFrame
-        closed_shifts['DAY_OF_WEEK'] = closed_shifts['OPERATION_DATE'].dt.day_name().str.upper()
-
-        # Melt opening_shifts to get SHIFT_STATUS
-        opening_shifts_melted = opening_shifts.melt(
-            id_vars=['COMPANY_NAME', 'KICHEN_NAME', 'DAY_OF_WEEK'],
-            value_vars=['BREAKFAST', 'BRUNCH', 'LUNCH', 'AFTERNOON_TEA', 'DINNER'],
-            var_name='SHIFT_ID',
-            value_name='SHIFT_STATUS'
-        )
-
-        # Merge closed_shifts with opening_shifts_melted to get SHIFT_STATUS
-        merged_closed_shifts = closed_shifts.merge(
-            opening_shifts_melted,
-            on=['COMPANY_NAME', 'KICHEN_NAME', 'DAY_OF_WEEK', 'SHIFT_ID'],
-            how='left'
-        )
-
-        # Determine IS_REDUNDANT based on SHIFT_STATUS
-        merged_closed_shifts['IS_REDUNDANT'] = merged_closed_shifts['SHIFT_STATUS'].apply(
-            lambda x: 'Y' if x == 'N' or pd.isna(x) else 'N'
-        )
-
-        # Filter out redundant shifts
-        closed_shifts = merged_closed_shifts[merged_closed_shifts['IS_REDUNDANT'] == 'N']
-
-        # Calculations
-        fwcv_comp['COMP_SHIFTS'] = 1
-        closed_shifts['CLOSED_SHIFTS'] = 1
-        full_schedule_df['TOTAL_SHIFTS'] = 1
-
-        # Adjust grouping columns based on grouping
-        if grouping == 'monthly':
-            group_columns = ['COMPANY_NAME', 'KICHEN_NAME', 'YEAR', 'MONTH']
-        elif grouping == 'yearly':
-            group_columns = ['COMPANY_NAME', 'KICHEN_NAME', 'YEAR']
-        elif grouping == 'weekly':
-            group_columns = ['COMPANY_NAME', 'KICHEN_NAME', 'WEEK_START_DATE']
-        elif grouping == 'daily':
-            group_columns = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE']
-        elif grouping == 'overall':
-            group_columns = ['COMPANY_NAME', 'KICHEN_NAME']
-        else:
-            raise ValueError(f"Invalid grouping value: {grouping}. Choose from 'daily', 'weekly', 'monthly', 'yearly', 'overall'.")
-
-        # Ensure all grouping columns are present
-        for col in group_columns:
-            for df in [fwcv_comp, full_schedule_df, closed_shifts]:
-                if col not in df.columns:
-                    df[col] = np.nan  # Or fill with appropriate values
-
-        # Group data
-        total_shifts = full_schedule_df.groupby(group_columns).agg({'TOTAL_SHIFTS': 'count'}).reset_index()
-        comp_shifts = fwcv_comp.groupby(group_columns).agg({'COMP_SHIFTS': 'count'}).reset_index()
-        closed_shifts_count = closed_shifts.groupby(group_columns).agg({'CLOSED_SHIFTS': 'count'}).reset_index()
-
-        # Merge data
-        dcon_data = total_shifts.merge(comp_shifts, on=group_columns, how='left')
-        dcon_data = dcon_data.merge(closed_shifts_count, on=group_columns, how='left')
-
-        dcon_data['COMP_SHIFTS'] = dcon_data['COMP_SHIFTS'].fillna(0)
-        dcon_data['CLOSED_SHIFTS'] = dcon_data['CLOSED_SHIFTS'].fillna(0)
-        dcon_data['CONSISTENCY'] = (dcon_data['COMP_SHIFTS'] / (dcon_data['TOTAL_SHIFTS'] - dcon_data['CLOSED_SHIFTS'])).round(2)
-        dcon_data['CONSISTENCY'] = dcon_data['CONSISTENCY'].replace([np.inf, -np.inf], 0).fillna(0)
-
-        # Add START_DATE and END_DATE
-        bounds = full_schedule_df.groupby(['COMPANY_NAME', 'KICHEN_NAME']).agg(
-            START_DATE=('OPERATION_DATE', 'min'),
-            END_DATE=('OPERATION_DATE', 'max')
-        ).reset_index()
-        dcon_data = dcon_data.merge(bounds, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
-
-        # Prepare final data based on grouping
-        if grouping == 'monthly':
-            dcon_data['OPERATION_DATE'] = pd.to_datetime(dcon_data[['YEAR', 'MONTH']].assign(DAY=1))
-            dcon_data = dcon_data.drop(columns=['YEAR', 'MONTH'])
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        elif grouping == 'weekly':
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'WEEK_START_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        elif grouping == 'yearly':
-            dcon_data['OPERATION_DATE'] = pd.to_datetime(dcon_data['YEAR'], format='%Y')
-            dcon_data = dcon_data.drop(columns=['YEAR'])
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        elif grouping == 'overall':
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS', 'START_DATE', 'END_DATE']
-        elif grouping == 'daily':
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        else:
-            columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-
-        if PerHotel:
-            group_cols = ['COMPANY_NAME'] + (
-                ['WEEK_START_DATE'] if 'WEEK_START_DATE' in dcon_data.columns else
-                ['OPERATION_DATE'] if 'OPERATION_DATE' in dcon_data.columns else []
-            )
-            dcon_data = dcon_data.groupby(group_cols).sum().reset_index()
-            dcon_data['CONSISTENCY'] = (dcon_data['COMP_SHIFTS'] / (dcon_data['TOTAL_SHIFTS'] - dcon_data['CLOSED_SHIFTS'])).round(2)
-            columns_to_select = [col for col in columns_to_select if col != 'KICHEN_NAME']
-            dcon_data = dcon_data[columns_to_select]
-        else:
-            dcon_data = dcon_data[columns_to_select]
-            dcon_data = dcon_data.sort_values(by=columns_to_select[:2])
-
-        # Merge with licenses_df if provided
-        if licenses_df is not None:
-            dcon_data = dcon_data.merge(licenses_df, on=['COMPANY_NAME', 'KICHEN_NAME'], how='inner')
-
-        return dcon_data
-
-    # Selecting the method based on cutoff dates
-    if end_date_dt < cutoff_date:
-        dcon_data = DCON_old_method(engine, conditions, join_cover, consistency_str, firstdate_query, start_date, end_date, company_name, restaurant_name, TakingBaseline, grouping, PerHotel, licenses_df)
-    elif start_date_dt >= cutoff_date:
-        dcon_data = DCON_new_method(engine, conditions, join_cover, consistency_str, firstdate_query, start_date, end_date, company_name, restaurant_name, TakingBaseline, grouping, PerHotel, licenses_df)
     else:
-        data_before = DCON_old_method(engine, conditions, join_cover, consistency_str, firstdate_query, start_date, (cutoff_date - timedelta(days=1)).strftime('%Y-%m-%d'), company_name, restaurant_name, TakingBaseline, grouping, PerHotel, licenses_df)
-        data_after = DCON_new_method(engine, conditions, join_cover, consistency_str, firstdate_query, cutoff_date.strftime('%Y-%m-%d'), end_date, company_name, restaurant_name, TakingBaseline, grouping, PerHotel, licenses_df)
-        combined_data = pd.concat([data_before, data_after], ignore_index=True)
-        if grouping == 'overall':
-            group_cols = ['COMPANY_NAME'] if PerHotel else ['COMPANY_NAME', 'KICHEN_NAME']
-            combined_data = combined_data.groupby(group_cols).agg({
-                'TOTAL_SHIFTS': 'sum',
-                'COMP_SHIFTS': 'sum',
-                'CLOSED_SHIFTS': 'sum',
-                'START_DATE': 'min',
-                'END_DATE': 'max',
-            }).reset_index()
-            combined_data['CONSISTENCY'] = (combined_data['COMP_SHIFTS'] / (combined_data['TOTAL_SHIFTS'] - combined_data['CLOSED_SHIFTS'])).round(2)
-            dcon_data = combined_data
-        else:
-            dcon_data = combined_data
-            if 'OPERATION_DATE' in dcon_data.columns or 'WEEK_START_DATE' in dcon_data.columns:
-                dcon_data = dcon_data.sort_values(by=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE' if 'OPERATION_DATE' in dcon_data.columns else 'WEEK_START_DATE'])
-            else:
-                dcon_data = dcon_data.sort_values(by=['COMPANY_NAME', 'KICHEN_NAME'])
-    
-    # Prepare final data for different groupings
-    if grouping == 'weekly':
-        # No additional adjustments needed as WEEK_START_DATE is already calculated
-        columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'WEEK_START_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        dcon_data = dcon_data[columns_to_select]
+        # Handle date range that spans the cutoff_date
+        data_query_before = f"""
+            SELECT
+                kfw.OPERATION_DATE,
+                cp.COMPANY_NAME,
+                ks.KICHEN_NAME,
+                kfw.SHIFT_ID,
+                SUM(kfw.AMOUNT) as FW,
+                SUM(kc_main.AMOUNT) as CV
+            FROM
+                KITCHEN_FOOD_WASTE kfw
+            JOIN
+                KITCHEN_STATION ks ON kfw.KC_STT_ID = ks.KC_STT_ID
+            LEFT JOIN
+                KITCHEN_COVER kc_main ON kc_main.KC_STT_ID = ks.KC_STT_ID AND kc_main.SHIFT_ID = kfw.SHIFT_ID AND kc_main.OPERATION_DATE = kfw.OPERATION_DATE
+            JOIN
+                COMPANY_PROFILE cp ON ks.CPN_PF_ID = cp.CPN_PF_ID
+            {join_cover}
+            WHERE
+                kfw.ACTIVE = 'Y'
+                {conditions} AND
+                {consistency_str}
+                kfw.OPERATION_DATE BETWEEN '{start_date}' AND '{(cutoff_date - timedelta(days=1)).strftime('%Y-%m-%d')}'
+            GROUP BY
+                cp.COMPANY_NAME, ks.KICHEN_NAME, kfw.OPERATION_DATE, kfw.SHIFT_ID;
+        """
+        data_query_after = f"""
+            SELECT
+                DATE(kfw.OPERATION_DATE) as OPERATION_DATE,
+                cp.COMPANY_NAME,
+                ks.KICHEN_NAME,
+                kfw.SHIFT_ID
+            FROM
+                KITCHEN_FOOD_WASTE kfw
+            JOIN
+                KITCHEN_STATION ks ON kfw.KC_STT_ID = ks.KC_STT_ID
+            JOIN
+                COMPANY_PROFILE cp ON ks.CPN_PF_ID = cp.CPN_PF_ID
+            WHERE
+                kfw.ACTIVE = 'Y'
+                {conditions} AND
+                kfw.COMPLETE='Y' AND
+                kfw.OPERATION_DATE BETWEEN '{cutoff_date.strftime('%Y-%m-%d')}' AND '{end_date}'
+            GROUP BY
+                cp.COMPANY_NAME, ks.KICHEN_NAME, kfw.OPERATION_DATE, kfw.SHIFT_ID;
+        """
+        data_before = pd.read_sql_query(data_query_before, engine)
+        data_after = pd.read_sql_query(data_query_after, engine)
+        data = pd.concat([data_before, data_after], ignore_index=True)
+    if 'data' not in locals():
+        data = pd.read_sql_query(data_query, engine)
+    if data.empty:
+        print("Data DataFrame is empty.")
+        return pd.DataFrame()
+
+    # Convert dates to datetime
+    data['OPERATION_DATE'] = pd.to_datetime(data['OPERATION_DATE'])
+    closed_shifts['OPERATION_DATE'] = pd.to_datetime(closed_shifts['OPERATION_DATE'])
+
+    # Merge baseline data and handle missing FirstDate
+    for df in [data, closed_shifts]:
+        df = df.merge(firstdate, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
+        df['FirstDate'] = pd.to_datetime(df['FirstDate'])
+        df['FirstDate'] = df['FirstDate'].fillna(start_date_dt)
+        df = df[df['OPERATION_DATE'] > df['FirstDate']]
+        df.drop(['FirstDate', 'COUNTRY_CODE'], axis=1, inplace=True)
+
+    # Generate full schedule
+    all_dates = pd.date_range(start=start_date, end=end_date)
+    days_of_week = all_dates.day_name().str.upper()
+    dates_df = pd.DataFrame({'OPERATION_DATE': all_dates, 'DAY_OF_WEEK': days_of_week})
+    opening_shifts['DAY_OF_WEEK'] = opening_shifts['DAY_OF_WEEK'].str.upper()
+
+    # Merge to get possible shifts
+    schedule = dates_df.merge(opening_shifts, on='DAY_OF_WEEK', how='left')
+    schedule_melted = schedule.melt(
+        id_vars=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'DAY_OF_WEEK'],
+        value_vars=['BREAKFAST', 'BRUNCH', 'LUNCH', 'AFTERNOON_TEA', 'DINNER'],
+        var_name='SHIFT_ID',
+        value_name='SHIFT_OPEN'
+    )
+    full_schedule_df = schedule_melted[schedule_melted['SHIFT_OPEN'] == 'Y'].drop('SHIFT_OPEN', axis=1)
+    full_schedule_df = full_schedule_df.drop_duplicates(subset=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'SHIFT_ID'])
+
+    # Merge full_schedule_df with firstdate and filter based on FirstDate
+    full_schedule_df = full_schedule_df.merge(firstdate[['COMPANY_NAME', 'KICHEN_NAME', 'FirstDate']], on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
+    full_schedule_df['FirstDate'] = pd.to_datetime(full_schedule_df['FirstDate'])
+    full_schedule_df['FirstDate'] = full_schedule_df['FirstDate'].fillna(start_date_dt)
+    full_schedule_df = full_schedule_df[full_schedule_df['OPERATION_DATE'] > full_schedule_df['FirstDate']]
+    full_schedule_df = full_schedule_df.drop(['FirstDate'], axis=1)
+
+    # **Include shifts from data that are not in full_schedule_df**
+    data_shifts = data[['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'SHIFT_ID']].drop_duplicates()
+    full_schedule_df = pd.concat([full_schedule_df, data_shifts], ignore_index=True).drop_duplicates(subset=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'SHIFT_ID'])
+
+    # Add grouping columns
+    if grouping in ['monthly', 'yearly', 'weekly']:
+        for df in [data, closed_shifts, full_schedule_df]:
+            df['YEAR'] = df['OPERATION_DATE'].dt.year
+            if grouping == 'monthly':
+                df['MONTH'] = df['OPERATION_DATE'].dt.month
+            elif grouping == 'weekly':
+                df['WEEK_START_DATE'] = df['OPERATION_DATE'] - pd.to_timedelta(df['OPERATION_DATE'].dt.weekday, unit='D')
+
+    # Prepare closed_shifts DataFrame
+    closed_shifts['DAY_OF_WEEK'] = closed_shifts['OPERATION_DATE'].dt.day_name().str.upper()
+    opening_shifts_melted = opening_shifts.melt(
+        id_vars=['COMPANY_NAME', 'KICHEN_NAME', 'DAY_OF_WEEK'],
+        value_vars=['BREAKFAST', 'BRUNCH', 'LUNCH', 'AFTERNOON_TEA', 'DINNER'],
+        var_name='SHIFT_ID',
+        value_name='SHIFT_STATUS'
+    )
+    merged_closed_shifts = closed_shifts.merge(
+        opening_shifts_melted,
+        on=['COMPANY_NAME', 'KICHEN_NAME', 'DAY_OF_WEEK', 'SHIFT_ID'],
+        how='left'
+    )
+    merged_closed_shifts['IS_REDUNDANT'] = merged_closed_shifts['SHIFT_STATUS'].apply(
+        lambda x: 'Y' if x == 'N' or pd.isna(x) else 'N'
+    )
+    closed_shifts = merged_closed_shifts[merged_closed_shifts['IS_REDUNDANT'] == 'N']
+
+    # Calculations
+    data['COMP_SHIFTS'] = 1
+    closed_shifts['CLOSED_SHIFTS'] = 1
+    full_schedule_df['TOTAL_SHIFTS'] = 1
+
+    # Define grouping columns
+    group_columns = ['COMPANY_NAME', 'KICHEN_NAME']
+    if grouping == 'monthly':
+        group_columns += ['YEAR', 'MONTH']
+    elif grouping == 'weekly':
+        group_columns += ['WEEK_START_DATE']
+    elif grouping == 'yearly':
+        group_columns += ['YEAR']
     elif grouping == 'daily':
-        dcon_data['OPERATION_DATE'] = pd.to_datetime(dcon_data['OPERATION_DATE'])
-        columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        dcon_data = dcon_data[columns_to_select]
-    elif grouping == 'monthly':
-        dcon_data['YEAR'] = dcon_data['OPERATION_DATE'].dt.year
-        dcon_data['MONTH'] = dcon_data['OPERATION_DATE'].dt.month
+        group_columns += ['OPERATION_DATE']
+
+    # Group data
+    total_shifts = full_schedule_df.groupby(group_columns).agg({'TOTAL_SHIFTS': 'count'}).reset_index()
+    comp_shifts = data.groupby(group_columns).agg({'COMP_SHIFTS': 'count'}).reset_index()
+    closed_shifts_count = closed_shifts.groupby(group_columns).agg({'CLOSED_SHIFTS': 'count'}).reset_index()
+
+    # Merge data
+    dcon_data = total_shifts.merge(comp_shifts, on=group_columns, how='left')
+    dcon_data = dcon_data.merge(closed_shifts_count, on=group_columns, how='left')
+    dcon_data['COMP_SHIFTS'] = dcon_data['COMP_SHIFTS'].fillna(0)
+    dcon_data['CLOSED_SHIFTS'] = dcon_data['CLOSED_SHIFTS'].fillna(0)
+    dcon_data['CONSISTENCY'] = (dcon_data['COMP_SHIFTS'] / (dcon_data['TOTAL_SHIFTS'] - dcon_data['CLOSED_SHIFTS'])).round(2)
+    dcon_data['CONSISTENCY'] = dcon_data['CONSISTENCY'].replace([np.inf, -np.inf], 0).fillna(0)
+
+    # Add START_DATE and END_DATE
+    bounds = full_schedule_df.groupby(['COMPANY_NAME', 'KICHEN_NAME']).agg(
+        START_DATE=('OPERATION_DATE', 'min'),
+        END_DATE=('OPERATION_DATE', 'max')
+    ).reset_index()
+    dcon_data = dcon_data.merge(bounds, on=['COMPANY_NAME', 'KICHEN_NAME'], how='left')
+
+    # Prepare final data based on grouping
+    if grouping == 'monthly':
         dcon_data['OPERATION_DATE'] = pd.to_datetime(dcon_data[['YEAR', 'MONTH']].assign(DAY=1))
         dcon_data = dcon_data.drop(columns=['YEAR', 'MONTH'])
-        columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        dcon_data = dcon_data[columns_to_select]
+    elif grouping == 'weekly':
+        pass  # WEEK_START_DATE is already in the DataFrame
     elif grouping == 'yearly':
-        dcon_data['YEAR'] = dcon_data['OPERATION_DATE'].dt.year
         dcon_data['OPERATION_DATE'] = pd.to_datetime(dcon_data['YEAR'], format='%Y')
         dcon_data = dcon_data.drop(columns=['YEAR'])
-        columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
-        dcon_data = dcon_data[columns_to_select]
+    elif grouping == 'daily':
+        pass  # OPERATION_DATE is already in the DataFrame
     elif grouping == 'overall':
-        columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME', 'CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS', 'START_DATE', 'END_DATE']
-        dcon_data = dcon_data[columns_to_select]
+        pass  # No additional adjustments needed
     else:
         raise ValueError(f"Invalid grouping value: {grouping}. Choose from 'daily', 'weekly', 'monthly', 'yearly', 'overall'.")
 
+    # Select columns to return
+    columns_to_select = ['COMPANY_NAME', 'KICHEN_NAME']
+    if grouping in ['monthly', 'daily', 'yearly']:
+        columns_to_select.append('OPERATION_DATE')
+    elif grouping == 'weekly':
+        columns_to_select.append('WEEK_START_DATE')
+    columns_to_select += ['CONSISTENCY', 'TOTAL_SHIFTS', 'COMP_SHIFTS', 'CLOSED_SHIFTS']
+    if grouping == 'overall':
+        columns_to_select += ['START_DATE', 'END_DATE']
+
     if PerHotel:
-        group_cols = ['COMPANY_NAME'] + (
-            ['WEEK_START_DATE'] if 'WEEK_START_DATE' in dcon_data.columns else
-            ['OPERATION_DATE'] if 'OPERATION_DATE' in dcon_data.columns else []
-        )
+        group_cols = ['COMPANY_NAME']
+        if 'WEEK_START_DATE' in dcon_data.columns:
+            group_cols.append('WEEK_START_DATE')
+        elif 'OPERATION_DATE' in dcon_data.columns:
+            group_cols.append('OPERATION_DATE')
         dcon_data = dcon_data.groupby(group_cols).sum().reset_index()
         dcon_data['CONSISTENCY'] = (dcon_data['COMP_SHIFTS'] / (dcon_data['TOTAL_SHIFTS'] - dcon_data['CLOSED_SHIFTS'])).round(2)
         columns_to_select = [col for col in columns_to_select if col != 'KICHEN_NAME']
-        dcon_data = dcon_data[columns_to_select]
+
+    dcon_data = dcon_data[columns_to_select]
+    dcon_data = dcon_data.sort_values(by=columns_to_select[:2])
 
     # Merge with licenses_df if provided
     if licenses_df is not None:
