@@ -15,7 +15,7 @@ import zipfile
 from werkzeug.utils import secure_filename
 import urllib.parse
 from calculations import *
-from graph import *
+from datetime import datetime
 
 logging.getLogger('matplotlib.category').setLevel(logging.WARNING)
 
@@ -149,8 +149,6 @@ def process_entries():
 def form_dcon():
     return render_template('form_dcon.html')
 
-from datetime import datetime
-
 @app.route('/process_dcon', methods=['GET', 'POST'])
 def process_dcon():
     company_name = request.form.get('company_name')
@@ -241,15 +239,104 @@ def process_dcon():
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
 
+@app.route('/form_weekly')
+def form_weekly():
+    return render_template('form_weekly.html')
+
+@app.route('/weekly_results', methods=['POST'])
+def weekly_results():
+    logger.info("Processing the wdcon")
+    
+    # Retrieve form data
+    start_date = request.form['start_date']
+    end_date = request.form['end_date']
+    parent = request.form.get('parent_company')
+    filter_option = request.form.get('calc_options')  # Matching form name
+    
+    # Set calculation method based on selection
+    if filter_option == 'cons_false':
+        CONS = False
+        method = 'Pre-July2024'
+    elif filter_option == 'cons_true':
+        CONS = True
+        method = 'Post-July2024'
+    
+    try:
+        # Calculate weekly DCON
+        week = DCON(engine=engine, start_date=start_date, end_date=end_date, grouping='weekly', CONS=CONS)
+        logger.info("Calculated weekly dcon")
+        
+        today = datetime.now()
+        # Group by parent company
+        week = group_by_parent_company(week)
+        week = week[week['LICENSE_EXPIRE_DATE'] >= today]
+        week = week[['COMPANY_NAME', 'KICHEN_NAME', 'WEEK_START_DATE', 'CONSISTENCY','COMP_SHIFTS','TOTAL_SHIFTS','CLOSED_SHIFTS','PARENT_COMPANY']]
+        # Filter by company
+        constance = week[week['PARENT_COMPANY'].isin(['Constance'])]
+        hyatt = week[week['PARENT_COMPANY'].isin(['Hyatt'])]
+        marriott = week[~week['PARENT_COMPANY'].isin(['Constance', 'Hyatt'])]
+
+        # Calculate average per group
+        avg_constance = constance['CONSISTENCY'].mean()
+        avg_hyatt = hyatt['CONSISTENCY'].mean()
+        avg_marriott = marriott['CONSISTENCY'].mean()
+        avg_per_parent = pd.DataFrame({
+            'PARENT_COMPANY': ['Constance', 'Hyatt', 'Marriott & Others'],
+            'CONSISTENCY': [avg_constance, avg_hyatt, avg_marriott]
+        })
+        
+        # Store the Excel file for download
+        temp_dir = tempfile.gettempdir()
+        file_path = os.path.join(temp_dir, f"all_dcon_{method}.xlsx")
+        
+        # Save different sheets for each company
+        with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
+            constance.to_excel(writer, sheet_name='Constance', index=False)
+            hyatt.to_excel(writer, sheet_name='Hyatt', index=False)
+            marriott.to_excel(writer, sheet_name='Marriott & Others', index=False)
+            avg_per_parent.to_excel(writer, sheet_name='Average per Group', index=False)
+        
+        # Generate download link
+        download_link = f"/download_excel/{os.path.basename(file_path)}"
+        
+        # Convert avg_per_parent DataFrame to HTML table
+        avg_per_parent_table = avg_per_parent.to_html(classes='table table-striped table-bordered table-hover', index=False)
+        
+        # Render the appropriate table based on parent company selection
+        if parent == 'constance':
+            return render_template(
+                'weekly_dcon.html',
+                week_table=constance.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                avg_per_parent_table=avg_per_parent_table,
+                download_link=download_link, parent_company=parent.capitalize()
+            )
+        elif parent == 'hyatt':
+            return render_template(
+                'weekly_dcon.html',
+                week_table=hyatt.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                avg_per_parent_table=avg_per_parent_table,
+                download_link=download_link, parent_company=parent.capitalize()
+            )
+        else:
+            return render_template(
+                'weekly_dcon.html',
+                week_table=marriott.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                avg_per_parent_table=avg_per_parent_table,
+                download_link=download_link, parent_company='Marriott & Others')
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        return f"An error occurred: {str(e)}"
+
     
 @app.route('/download_excel/<filename>')
 def download_excel(filename):
+    
     temp_dir = tempfile.gettempdir()
     file_path = os.path.join(temp_dir, filename)
     return send_file(file_path, as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=8080, debug=True)
 
 
 

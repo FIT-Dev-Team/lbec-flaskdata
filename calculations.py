@@ -806,7 +806,7 @@ def g_cover(start_date='2000-01-01', end_date=datetime.now(), company_name=None,
 
     return fwcv_comp
 
-def DCON(start_date='2000-01-01', end_date=None, company_name=None, restaurant_name=None,
+def DCON(engine, start_date='2000-01-01', end_date=None, company_name=None, restaurant_name=None,
          TakingBaseline=True, grouping='overall', PerHotel=False, CONS=True, Dummies=True, Expired=False):
     engine = create_connection()  # Ensure this function is defined
     if end_date is None:
