@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Food Waste & Cover Entries{% endblock %}
+
+{% set show_container = false %}
+
+{% block content %}
+
+<style>
+    .custom-container {
+        background-color: orange;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        max-width: 600px;
+        margin: 40px auto;
+    }
+    .custom-form label {
+        display: block;
+        margin-top: 10px;
+    }
+    .custom-form input, .custom-form select {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        box-sizing: border-box;
+    }
+    .custom-form select {
+        text-align: center; /* Center the dropdown options */
+    }
+    .custom-form button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 20px; /* Padding before the submit button */
+        border-radius: 5px;
+    }
+</style>
+
+<div class="custom-container">
+    <center>
+        <h2>Dcon per Week<img src="/static/goated.png" width="32" height="32"></h2>
+        <p>Select week and choose pre vs. post july calculation.</p>
+        <p style="color: whitesmoke; text-align:center;"><strong>Keep selected period within 4 weeks for faster loading speed.</strong></p>
+    </center>
+    <form action="{{ url_for('weekly_results') }}" method="POST" class="custom-form">
+        <label for="start_date">Start Date (YYYY-MM-DD):</label>
+        <input type="date" name="start_date" id="start_date" required>
+
+        <label for="end_date">End Date (YYYY-MM-DD):</label>
+        <input type="date" name="end_date" id="end_date" required>
+
+        <!-- Parent Company Dropdown -->
+        <label for="parent_company">Select Parent Company:</label>
+        <select name="parent_company" id="parent_company">
+            <option value="">--Please choose parent company--</option>
+            <option value="constance">Constance</option>
+            <option value="hyatt">Hyatt</option>
+            <option value="others">Marriott & Others</option>
+        </select>
+
+        <!-- Calculation Options Dropdown -->
+        <label for="calc_options">Select Calculation Options:</label>
+        <select name="calc_options" id="calc_options">
+            <option value="">--Please choose calculation method--</option>
+            <option value="cons_false">Pre-July 2024 | FW + CV</option>
+            <option value="cons_true">Post July 2024 | Mandatory Categories +/- CV</option>
+        </select>
+
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+</div>
+{% endblock %}
