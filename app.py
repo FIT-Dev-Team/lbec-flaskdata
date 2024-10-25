@@ -242,6 +242,69 @@ def process_dcon():
         return f"An error occurred: {str(e)}"
 
     
+@app.route('/form_wdcon', methods=['GET', 'POST'])
+def form_wdcon():
+    return render_template('form_wdcon.html')
+
+
+# Function for core logic of wdcon processing
+def wdcon_logic(start_date, end_date, parent, CONS):
+    logger.info("Processing wdcon logic")
+
+    # Call the DCON function
+    week = DCON(engine=create_connection(), start_date=start_date, end_date=end_date, grouping='weekly', CONS=CONS)
+    logger.info("Calculated weekly dcon")
+
+    # Group by parent company
+    week = group_by_parent_company(week)
+
+    # Filter by company
+    constance = week[week['PARENT_COMPANY'].isin(['Constance'])]
+    hyatt = week[week['PARENT_COMPANY'].isin(['Hyatt'])]
+    marriott = week[~week['PARENT_COMPANY'].isin(['Constance', 'Hyatt'])]
+
+    # Calculate average per group
+    avg_constance = constance['CONSISTENCY'].mean()
+    avg_hyatt = hyatt['CONSISTENCY'].mean()
+    avg_marriott = marriott['CONSISTENCY'].mean()
+    avg_per_parent = pd.DataFrame({
+        'PARENT_COMPANY': ['Constance', 'Hyatt', 'Marriott & Others'],
+        'CONSISTENCY': [avg_constance, avg_hyatt, avg_marriott]
+    })
+
+    # Store Excel file for download
+    temp_dir = tempfile.gettempdir()
+    file_path = os.path.join(temp_dir, f"all_dcon_Pre_July2024.xlsx")  # Just an example
+
+    with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
+        constance.to_excel(writer, sheet_name='Constance', index=False)
+        hyatt.to_excel(writer, sheet_name='Hyatt', index=False)
+        marriott.to_excel(writer, sheet_name='Marriott & Others', index=False)
+        avg_per_parent.to_excel(writer, sheet_name='Average per Group', index=False)
+
+    return file_path, avg_per_parent
+
+# The Flask route remains the same
+@app.route('/process_wdcon', methods=['POST'])
+def process_wdcon():
+    logger.info("Processing the wdcon route")
+
+    # Get form data from request
+    start_date = request.form['start_date']
+    end_date = request.form['end_date']
+    parent = request.form.get('parent_company')
+    filter_option = request.form.get('calc_options')
+
+    # Set calculation method based on selection
+    CONS = filter_option == 'cons_true'
+
+    # Call the logic function
+    file_path, avg_per_parent = wdcon_logic(start_date, end_date, parent, CONS)
+
+    # Handle further response logic (e.g., rendering or sending file)
+    return send_file(file_path, as_attachment=True)
+
+
 @app.route('/download_excel/<filename>')
 def download_excel(filename):
     temp_dir = tempfile.gettempdir()
@@ -249,7 +312,7 @@ def download_excel(filename):
     return send_file(file_path, as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=8080, debug=True)
 
 
 
