@@ -165,76 +165,108 @@ def process_dcon():
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
         cutoff_date = datetime(2024, 6, 30)
 
-        if start_date <= cutoff_date and end_date <= cutoff_date:
-            # No CONS
-            month = DCON(engine=engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='monthly', CONS=False)
-            ov = DCON(engine=engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='overall', CONS=False)
+        # Validate date range
+        if end_date < start_date:
+            return "End date must be after start date."
+
+        # Determine periods based on cutoff_date
+        periods = []
+
+        if end_date <= cutoff_date:
+            # Entire period before cutoff_date (No CONS)
+            periods.append({
+                'start_date': start_date_str,
+                'end_date': end_date_str,
+                'CONS': False
+            })
         elif start_date > cutoff_date:
-            # Apply CONS
-            month = DCON(engine=engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='monthly', CONS=True)
-            ov = DCON(engine=engine,company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='overall', CONS=True)
-        elif start_date <= cutoff_date and end_date > cutoff_date:
-            # Split into pre- and post-cutoff date
-            start_date_pre = start_date_str
-            end_date_pre = '2024-06-30'
-            start_date_post = '2024-07-01'
-
-            # Pre-cutoff (No CONS)
-            month_pre = DCON(engine=engine, company_name=company_name, start_date=start_date_pre, end_date=end_date_pre, grouping='monthly', CONS=False)
-            # Post-cutoff (CONS)
-            month_post = DCON(engine=engine, company_name=company_name, start_date=start_date_post, end_date=end_date_str, grouping='monthly', CONS=True)
-
-            # Merge pre and post data
-            month = pd.concat([month_pre, month_post])
-            del month_pre, month_post
-            month = month.sort_values(by=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE'])
-
-            # Overall calculation split similarly
-            ov_pre = DCON(engine, company_name=company_name, start_date=start_date_pre, end_date=end_date_pre, grouping='overall', CONS=False)
-            ov_post = DCON(engine, company_name=company_name, start_date=start_date_post, end_date=end_date_str, grouping='overall', CONS=True)
-            ov = pd.concat([ov_pre, ov_post])
-            del ov_pre, ov_post
-
-            ov = ov.groupby(['COMPANY_NAME', 'KICHEN_NAME']).agg({
-                'COMP_SHIFTS': 'sum', 
-                'TOTAL_SHIFTS': 'sum', 
-                'CLOSED_SHIFTS': 'sum',
-                'START_DATE': 'min',
-                'END_DATE': 'max'
-            }).reset_index()
-
-            ov['CONSISTENCY'] = (ov['COMP_SHIFTS'] / (ov['TOTAL_SHIFTS'] - ov['CLOSED_SHIFTS'])).round(2)
+            # Entire period after cutoff_date (Apply CONS)
+            periods.append({
+                'start_date': start_date_str,
+                'end_date': end_date_str,
+                'CONS': True
+            })
         else:
-            return "No data found for the given parameters."
+            # Period spans cutoff_date; split into pre and post periods
+            periods.append({
+                'start_date': start_date_str,
+                'end_date': cutoff_date.strftime('%Y-%m-%d'),
+                'CONS': False
+            })
+            periods.append({
+                'start_date': (cutoff_date + timedelta(days=1)).strftime('%Y-%m-%d'),
+                'end_date': end_date_str,
+                'CONS': True
+            })
 
-        # Handling the results and rendering tables
-        monthly = month[['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'COMP_SHIFTS', 'TOTAL_SHIFTS', 'CLOSED_SHIFTS']]
-        ov2 = ov[['COMPANY_NAME', 'KICHEN_NAME', 'CONSISTENCY','COMP_SHIFTS', 'TOTAL_SHIFTS', 'CLOSED_SHIFTS', 'START_DATE', 'END_DATE']]
-        del month, ov
-    
+        # Initialize lists to collect dataframes
+        monthly_dfs = []
+        overall_dfs = []
+
+        for period in periods:
+            # Fetch monthly data
+            month_df = DCON(
+                engine=engine,
+                company_name=company_name,
+                start_date=period['start_date'],
+                end_date=period['end_date'],
+                grouping='monthly',
+                CONS=period['CONS']
+            )
+            monthly_dfs.append(month_df)
+
+            # Fetch overall data
+            ov_df = DCON(
+                engine=engine,
+                company_name=company_name,
+                start_date=period['start_date'],
+                end_date=period['end_date'],
+                grouping='overall',
+                CONS=period['CONS']
+            )
+            overall_dfs.append(ov_df)
+
+        # Concatenate dataframes
+        monthly = pd.concat(monthly_dfs).sort_values(by=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE'])
+        overall = pd.concat(overall_dfs)
+
+        # Aggregate overall data
+        overall = overall.groupby(['COMPANY_NAME', 'KICHEN_NAME']).agg({
+            'COMP_SHIFTS': 'sum',
+            'TOTAL_SHIFTS': 'sum',
+            'CLOSED_SHIFTS': 'sum',
+            'START_DATE': 'min',
+            'END_DATE': 'max'
+        }).reset_index()
+        overall['CONSISTENCY'] = (overall['COMP_SHIFTS'] / (overall['TOTAL_SHIFTS'] - overall['CLOSED_SHIFTS'])).round(2)
+
+        # Select relevant columns
+        monthly = monthly[['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'COMP_SHIFTS', 'TOTAL_SHIFTS', 'CLOSED_SHIFTS']]
+        overall = overall[['COMPANY_NAME', 'KICHEN_NAME', 'CONSISTENCY', 'COMP_SHIFTS', 'TOTAL_SHIFTS', 'CLOSED_SHIFTS', 'START_DATE', 'END_DATE']]
+
         # Store the Excel file for download
         temp_dir = tempfile.gettempdir()
         file_path = os.path.join(temp_dir, f"{company_name}_dcon_data.xlsx")
         with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
             monthly.to_excel(writer, sheet_name='Monthly Data', index=False)
-            ov2.to_excel(writer, sheet_name='Overall Data', index=True)
+            overall.to_excel(writer, sheet_name='Overall Data', index=False)
 
         # Convert dataframes to HTML for rendering
         month_table = monthly.to_html(classes='table table-striped table-bordered table-hover', index=False)
-        overall_table = ov2.to_html(classes='table table-striped table-bordered table-hover', index=True)
+        overall_table = overall.to_html(classes='table table-striped table-bordered table-hover', index=False)
 
         # Return rendered template
         return render_template(
             'consistency.html',
             month_table=month_table,
             overall_table=overall_table,
-            # charts_html=charts,
             download_link=f"/download_excel/{os.path.basename(file_path)}"
         )
-    
+
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
-        return f"An error occurred: {str(e)}"
+        return "An internal error occurred. Please try again later."
+
 
 @app.route('/form_weekly')
 def form_weekly():
@@ -396,7 +428,7 @@ def download_excel(filename):
     return send_file(file_path, as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=10000)
 
 
 
