@@ -333,25 +333,30 @@ def weekly_results():
         
         # Render the appropriate table based on parent company selection
         if parent == 'constance':
+            week_table = constance.to_html(classes='table table-striped table-bordered table-hover', index=False)
+            week_table = week_table.replace('<table ', '<table id="week_table" ')
             return render_template(
                 'weekly_dcon.html',
-                week_table=constance.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                week_table=week_table,
                 avg_per_parent_table=avg_per_parent_table,
-                download_link=download_link, parent_company=parent.capitalize()
-            )
+                download_link=download_link, parent_company=parent.capitalize())
         elif parent == 'hyatt':
+            week_table = hyatt.to_html(classes='table table-striped table-bordered table-hover', index=False)
+            week_table = week_table.replace('<table ', '<table id="week_table" ')
             return render_template(
                 'weekly_dcon.html',
-                week_table=hyatt.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                week_table=week_table,
                 avg_per_parent_table=avg_per_parent_table,
-                download_link=download_link, parent_company=parent.capitalize()
-            )
+                download_link=download_link, parent_company=parent.capitalize())
         else:
+            week_table = marriott.to_html(classes='table table-striped table-bordered table-hover', index=False)
+            week_table = week_table.replace('<table ', '<table id="week_table" ')
             return render_template(
                 'weekly_dcon.html',
-                week_table=marriott.to_html(classes='table table-striped table-bordered table-hover', index=False),
+                week_table=week_table,
                 avg_per_parent_table=avg_per_parent_table,
                 download_link=download_link, parent_company='Marriott & Others')
+
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
@@ -428,7 +433,7 @@ def download_excel(filename):
     return send_file(file_path, as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=8080, debug=True)
 
 
 
