@@ -45,7 +45,7 @@
         <p>Select week and choose pre vs. post july calculation.</p>
         <p style="color: whitesmoke; text-align:center;"><strong>Keep selected period within 4 weeks for faster loading speed.</strong></p>
     </center>
-    <form action="{{ url_for('process_wdcon') }}" method="POST" class="custom-form">
+    <form action="{{ url_for('weekly_results') }}" method="POST" class="custom-form">
         <label for="start_date">Start Date (YYYY-MM-DD):</label>
         <input type="date" name="start_date" id="start_date" required>
 
