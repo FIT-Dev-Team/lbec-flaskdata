@@ -361,7 +361,6 @@ def weekly_results():
         logger.error(f"An error occurred: {str(e)}")
         return f"An error occurred: {str(e)}"
 
-    
 @app.route('/form_wdcon', methods=['GET', 'POST'])
 def form_wdcon():
     return render_template('form_wdcon.html')
@@ -422,8 +421,7 @@ def process_wdcon():
     file_path, avg_per_parent = wdcon_logic(start_date, end_date, parent, CONS)
 
     # Handle further response logic (e.g., rendering or sending file)
-    return send_file(file_path, as_attachment=True)
-
+    return send_file(file_path, as_attachment=True)     
 
 @app.route('/download_excel/<filename>')
 def download_excel(filename):

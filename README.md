@@ -101,12 +101,6 @@ The application provides an easy-to-use web interface to generate reports and an
 
 ---
 
-### Additional Notes:
-- **Load Time**: Due to free hosting, the website may take up to **50 seconds** to load. Please be patient while the data is fetched and processed.
-- **File Downloads**: Each section provides the processed data as a **CSV** or **Excel** file, which can be useful for further analysis.
-
----
-
 ## Future Enhancements
 
 ### 1. **Monthly Grams per Cover (g/Cover) Report**
