@@ -5,7 +5,7 @@
 {% block title %}{{ parent_company }} Consistency Report{% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="padding: 0; margin: 0;">  <!-- Full width with no padding -->
+<div class="container-fluid" style="padding: 5px; margin: 0;">  <!-- Full width with no padding -->
     <h1 class="text-center my-4">{{ parent_company }} Consistency Report</h1>
 
     <div class="text-center mb-4">
@@ -31,4 +31,11 @@
     {% endif %}
     
 </div>
+<script type="text/javascript">
+    $(document).ready(function() {
+        $('#week_table').DataTable({
+            "pageLength": 25
+        });
+    });
+    </script>
 {% endblock %}
