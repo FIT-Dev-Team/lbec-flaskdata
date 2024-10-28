@@ -167,12 +167,12 @@ def process_dcon():
 
         if start_date <= cutoff_date and end_date <= cutoff_date:
             # No CONS
-            month = DCON(engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='monthly', CONS=False)
-            ov = DCON(engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='overall', CONS=False)
+            month = DCON(engine=engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='monthly', CONS=False)
+            ov = DCON(engine=engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='overall', CONS=False)
         elif start_date > cutoff_date:
             # Apply CONS
-            month = DCON(engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='monthly', CONS=True)
-            ov = DCON(engine,company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='overall', CONS=True)
+            month = DCON(engine=engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='monthly', CONS=True)
+            ov = DCON(engine=engine,company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='overall', CONS=True)
         elif start_date <= cutoff_date and end_date > cutoff_date:
             # Split into pre- and post-cutoff date
             start_date_pre = start_date_str
@@ -180,18 +180,20 @@ def process_dcon():
             start_date_post = '2024-07-01'
 
             # Pre-cutoff (No CONS)
-            month_pre = DCON(company_name=company_name, start_date=start_date_pre, end_date=end_date_pre, grouping='monthly', CONS=False)
+            month_pre = DCON(engine=engine, company_name=company_name, start_date=start_date_pre, end_date=end_date_pre, grouping='monthly', CONS=False)
             # Post-cutoff (CONS)
-            month_post = DCON(company_name=company_name, start_date=start_date_post, end_date=end_date_str, grouping='monthly', CONS=True)
+            month_post = DCON(engine=engine, company_name=company_name, start_date=start_date_post, end_date=end_date_str, grouping='monthly', CONS=True)
 
             # Merge pre and post data
             month = pd.concat([month_pre, month_post])
+            del month_pre, month_post
             month = month.sort_values(by=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE'])
 
             # Overall calculation split similarly
             ov_pre = DCON(engine, company_name=company_name, start_date=start_date_pre, end_date=end_date_pre, grouping='overall', CONS=False)
             ov_post = DCON(engine, company_name=company_name, start_date=start_date_post, end_date=end_date_str, grouping='overall', CONS=True)
             ov = pd.concat([ov_pre, ov_post])
+            del ov_pre, ov_post
 
             ov = ov.groupby(['COMPANY_NAME', 'KICHEN_NAME']).agg({
                 'COMP_SHIFTS': 'sum', 
@@ -208,13 +210,8 @@ def process_dcon():
         # Handling the results and rendering tables
         monthly = month[['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE', 'CONSISTENCY', 'COMP_SHIFTS', 'TOTAL_SHIFTS', 'CLOSED_SHIFTS']]
         ov2 = ov[['COMPANY_NAME', 'KICHEN_NAME', 'CONSISTENCY','COMP_SHIFTS', 'TOTAL_SHIFTS', 'CLOSED_SHIFTS', 'START_DATE', 'END_DATE']]
-
-        if month.empty:
-            return "No data found for the given parameters."
-
-        # Generate and store charts
-        # charts = plot_graph(month)
-
+        del month, ov
+    
         # Store the Excel file for download
         temp_dir = tempfile.gettempdir()
         file_path = os.path.join(temp_dir, f"{company_name}_dcon_data.xlsx")
@@ -338,7 +335,7 @@ def wdcon_logic(start_date, end_date, parent, CONS):
     logger.info("Processing wdcon logic")
 
     # Call the DCON function
-    week = DCON(engine=create_connection(), start_date=start_date, end_date=end_date, grouping='weekly', CONS=CONS)
+    week = DCON(engine=engine, start_date=start_date, end_date=end_date, grouping='weekly', CONS=CONS)
     logger.info("Calculated weekly dcon")
 
     # Group by parent company
