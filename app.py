@@ -167,12 +167,12 @@ def process_dcon():
 
         if start_date <= cutoff_date and end_date <= cutoff_date:
             # No CONS
-            month = DCON(company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='monthly', CONS=False)
-            ov = DCON(company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='overall', CONS=False)
+            month = DCON(engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='monthly', CONS=False)
+            ov = DCON(engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='overall', CONS=False)
         elif start_date > cutoff_date:
             # Apply CONS
-            month = DCON(company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='monthly', CONS=True)
-            ov = DCON(company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='overall', CONS=True)
+            month = DCON(engine, company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='monthly', CONS=True)
+            ov = DCON(engine,company_name=company_name, start_date=start_date_str, end_date=end_date_str, grouping='overall', CONS=True)
         elif start_date <= cutoff_date and end_date > cutoff_date:
             # Split into pre- and post-cutoff date
             start_date_pre = start_date_str
@@ -189,8 +189,8 @@ def process_dcon():
             month = month.sort_values(by=['COMPANY_NAME', 'KICHEN_NAME', 'OPERATION_DATE'])
 
             # Overall calculation split similarly
-            ov_pre = DCON(company_name=company_name, start_date=start_date_pre, end_date=end_date_pre, grouping='overall', CONS=False)
-            ov_post = DCON(company_name=company_name, start_date=start_date_post, end_date=end_date_str, grouping='overall', CONS=True)
+            ov_pre = DCON(engine, company_name=company_name, start_date=start_date_pre, end_date=end_date_pre, grouping='overall', CONS=False)
+            ov_post = DCON(engine, company_name=company_name, start_date=start_date_post, end_date=end_date_str, grouping='overall', CONS=True)
             ov = pd.concat([ov_pre, ov_post])
 
             ov = ov.groupby(['COMPANY_NAME', 'KICHEN_NAME']).agg({
@@ -213,7 +213,7 @@ def process_dcon():
             return "No data found for the given parameters."
 
         # Generate and store charts
-        charts = plot_graph(month)
+        # charts = plot_graph(month)
 
         # Store the Excel file for download
         temp_dir = tempfile.gettempdir()
@@ -231,7 +231,7 @@ def process_dcon():
             'consistency.html',
             month_table=month_table,
             overall_table=overall_table,
-            charts_html=charts,
+            # charts_html=charts,
             download_link=f"/download_excel/{os.path.basename(file_path)}"
         )
     
