@@ -36,6 +36,7 @@ def escape_sql_string(value):
 def group_by_parent_company(df, column_name='COMPANY_NAME'):
     # Define the mapping of keywords to parent companies
     parent_company_mapping = {
+        'HYATT': 'Hyatt',
         'Hyatt': 'Hyatt',
         'Andaz': 'Hyatt',
         'Alila': 'Hyatt',
@@ -94,6 +95,11 @@ demo_kitchens = [
     ("M ON22", "LIGHTBLUE"),
     ("Jaafaiy", "LIGHTBLUE"),
     ("Mamadoo", "Mamadoo Company Limited"),
+    ("0.Bakery", "Demo Convention Center"),
+    ("0.Production", "Demo Convention Center"),
+    ("Buffet", "Demo Convention Center"),
+    ("Coffee Break", "Demo Convention Center"),
+    ("Set Menu", "Demo Convention Center"),
     
     # Newly added demo kitchens
     ("Asian", "Mock Canteen"),
