@@ -14,7 +14,7 @@
 
     <!-- Weekly Consistency Table -->
     {% if week_table %}
-        <h2 class="text-center">Weekly Consistency</h2>
+        <h2 class="text-center">Weekly Consistency: {{start_date}} to {{end_date}}</h2>
         <div class="table-responsive mb-4">
             {{ week_table|safe }}
         </div>
