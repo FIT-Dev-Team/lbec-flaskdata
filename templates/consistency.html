@@ -14,7 +14,7 @@
 
     <!-- Monthly Consistency Table -->
     {% if month_table %}
-        <h2 class="text-center">Monthly Consistency</h2>
+        <h2 class="text-center">Monthly Consistency: {{start_date}} to {{end_date}}</h2>
         <div class="table-responsive mb-4">
             {{ month_table|safe }}
         </div>

@@ -70,7 +70,9 @@ def process_total_fw():
 
         # Process data into a pivot table
         np_fw = fw[fw['IGD_CATEGORY_ID'] != 'PLATE']
+        plate = fw[fw['IGD_CATEGORY_ID'] == 'PLATE']
         pivot = np_fw.pivot_table(index=['COMPANY_NAME', 'KICHEN_NAME'], columns='IGD_FOODTYPE_ID', values='AMOUNT', aggfunc='sum').reset_index()
+        plate = plate.pivot_table(index=['COMPANY_NAME', 'KICHEN_NAME'], columns='IGD_CATEGORY_ID', values='AMOUNT', aggfunc='sum').reset_index()
         pivot['START'] = np_fw['OPERATION_DATE'].min()
         pivot['END'] = np_fw['OPERATION_DATE'].max()
 
@@ -92,9 +94,13 @@ def process_total_fw():
         pivot = pivot[columns_order]
         # Create the file path for the CSV
         temp_dir = tempfile.gettempdir()  # Gets the temporary directory
-        file_path = os.path.join(temp_dir, f"{company_name}_Total_FW.csv")
+        file_path = os.path.join(temp_dir, f"{company_name}_Total_FW.xlsx")
 
-        pivot.to_csv(file_path, index=False)
+        with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
+            pivot.to_excel(writer, sheet_name='Total_FW_NO_PLATE', index=False) 
+            plate.to_excel(writer, sheet_name='Total_PLATE', index=False)
+
+
         return send_file(file_path, as_attachment=True)
 
 
@@ -260,6 +266,8 @@ def process_dcon():
             'consistency.html',
             month_table=month_table,
             overall_table=overall_table,
+            start_date=start_date_str,
+            end_date=end_date_str,
             download_link=f"/download_excel/{os.path.basename(file_path)}"
         )
 
@@ -339,6 +347,8 @@ def weekly_results():
                 'weekly_dcon.html',
                 week_table=week_table,
                 avg_per_parent_table=avg_per_parent_table,
+                start_date=start_date,
+                end_date=end_date,
                 download_link=download_link, parent_company=parent.capitalize())
         elif parent == 'hyatt':
             week_table = hyatt.to_html(classes='table table-striped table-bordered table-hover', index=False)
@@ -347,6 +357,8 @@ def weekly_results():
                 'weekly_dcon.html',
                 week_table=week_table,
                 avg_per_parent_table=avg_per_parent_table,
+                start_date=start_date,
+                end_date=end_date,
                 download_link=download_link, parent_company=parent.capitalize())
         else:
             week_table = marriott.to_html(classes='table table-striped table-bordered table-hover', index=False)
@@ -355,6 +367,8 @@ def weekly_results():
                 'weekly_dcon.html',
                 week_table=week_table,
                 avg_per_parent_table=avg_per_parent_table,
+                start_date=start_date,
+                end_date=end_date,
                 download_link=download_link, parent_company='Marriott & Others')
 
     except Exception as e:
