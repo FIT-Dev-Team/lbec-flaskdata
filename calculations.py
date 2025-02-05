@@ -787,7 +787,7 @@ def g_cover(start_date='2000-01-01', end_date=datetime.now(), company_name=None,
                            'KICHEN_NAME', 'OPERATION_DATE', 'FW', 'CV']]
     if grouping == 'weekly':
         fwcv_comp = fwcv_comp.groupby(
-            [pd.Grouper(key='OPERATION_DATE', freq='W'), 'KICHEN_NAME', 'COMPANY_NAME']).sum()
+            [pd.Grouper(key='OPERATION_DATE', freq='W-SUN'), 'KICHEN_NAME', 'COMPANY_NAME']).sum()
 
     elif grouping == 'monthly':
         fwcv_comp = fwcv_comp.groupby(
